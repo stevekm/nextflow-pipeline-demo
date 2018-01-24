@@ -39,15 +39,23 @@ println """\
 * create file objects from the given string parameters
 */
 bam_normal_file = file(params.bam_normal)
-bai_normal_file = file(params.bam_normal + '.bai')
+bai_normal_file = file("${params.bam_normal}.bai")
 bam_tumor_file = file(params.bam_tumor)
-bai_tumor_file = file(params.bam_tumor + '.bai')
+bai_tumor_file = file("${params.bam_tumor}.bai")
 microsatellites_file = file(params.microsatellites)
 regions_bed_file = file(params.regions_bed)
 
 process msisensor {
     // run msisensor
-    clusterOptions '-cwd -pe threaded 1-12 -j y'
+    clusterOptions '-cwd -pe threaded 1-32 -j y'
+    publishDir "output/${params.sampleID}/MSISensor" , mode: 'copy', overwrite: true,
+        saveAs: {filename ->
+            if (filename == 'msisensor') "${params.sampleID}.msisensor"
+            else if (filename == 'msisensor_dis') "${params.sampleID}.msisensor_dis"
+            else if (filename == 'msisensor_germline') "${params.sampleID}.msisensor_germline"
+            else if (filename == 'msisensor_somatic') "${params.sampleID}.msisensor_somatic"
+            else null
+        }
 
     input:
     file microsatellites from microsatellites_file
@@ -58,13 +66,13 @@ process msisensor {
     file regions_bed from regions_bed_file
 
     output:
-    file '${params.sampleID}'
-    file '${params.sampleID}_dis'
-    file '${params.sampleID}_germline'
-    file '${params.sampleID}_somatic'
+    file 'msisensor'
+    file 'msisensor_dis'
+    file 'msisensor_germline'
+    file 'msisensor_somatic'
 
     script:
     """
-    $params.msisensor_bin msi -d $microsatellites -n $bam_normal -t $bam_tumor -e $regions_bed -o ${params.sampleID} -l 1 -q 1 -b \${NSLOTS:-1}
+    $params.msisensor_bin msi -d $microsatellites -n $bam_normal -t $bam_tumor -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
     """
 }
