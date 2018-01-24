@@ -1,0 +1,3 @@
+[submodule "example-NGS-data"]
+	path = example-NGS-data
+	url = https://github.com/stevekm/example-NGS-data.git
