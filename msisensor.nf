@@ -2,37 +2,38 @@
 // pipeline to run MSI Sensor on a single sample
 // https://github.com/ding-lab/msisensor
 //
-params.sampleID = null
-params.bam_normal = null
-params.bam_tumor = null
-params.regions_bed = "/ifs/data/molecpathlab/NGS580_WES-development/msisensor-dev/NGS580_targets_head10.bed"
+
+params.bam_dir = "BAM-BWA"
+params.samples_pairs_sheet = "samples.pairs.controls.csv"
+params.regions_bed = "targets.bed"
 params.msisensor_bin = "/ifs/data/molecpathlab/bin/msisensor/msisensor"
 params.microsatellites = "/ifs/data/molecpathlab/bin/msisensor/hg19_microsatellites.list"
 
 
+// params.sampleID = null
+// params.bam_normal = null
+// params.bam_tumor = null
 // check mandatory options
-if (!params.sampleID) {
-    exit 1, "Sample ID genome not specified"
-}
-if (!params.bam_normal) {
-    exit 1, "Sample normal .bam file not specified"
-}
-if (!params.bam_tumor) {
-    exit 1, "Sample tumor .bam file not specified"
-}
-
-
-println """\
-         MSI Sensor
-         ===================================
-         sampleID: ${params.sampleID}
-         bam_normal        : ${params.bam_normal}
-         bam_tumor        : ${params.bam_tumor}
-         regions_bed        : ${params.regions_bed}
-         msisensor_bin       : ${params.msisensor_bin}
-         microsatellites       : ${params.microsatellites}
-         """
-         .stripIndent()
+// if (!params.sampleID) {
+//     exit 1, "Sample ID genome not specified"
+// }
+// if (!params.bam_normal) {
+//     exit 1, "Sample normal .bam file not specified"
+// }
+// if (!params.bam_tumor) {
+//     exit 1, "Sample tumor .bam file not specified"
+// }
+// println """\
+//          MSI Sensor
+//          ===================================
+//          sampleID: ${params.sampleID}
+//          bam_normal        : ${params.bam_normal}
+//          bam_tumor        : ${params.bam_tumor}
+//          regions_bed        : ${params.regions_bed}
+//          msisensor_bin       : ${params.msisensor_bin}
+//          microsatellites       : ${params.microsatellites}
+//          """
+//          .stripIndent()
 
 
 /*

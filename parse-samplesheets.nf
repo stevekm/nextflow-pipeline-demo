@@ -1,24 +1,29 @@
+params.samplesheet = "samples.pairs.controls.csv" // .csv samplesheet with tumor-normal sample ID pairs
+params.bam_dir = "BAM-BWA" // directory containing .bam files for the samples
 
-params.samplesheet = "samples.pairs.controls.csv"
 
-sample_pairs = Channel.fromPath( file(params.samplesheet) )
-                        .splitCsv(header: true)
-                        // .subscribe { row ->
-                        //             println "${row."#SAMPLE-T"}\t${row."#SAMPLE-N"}"
-                        //             // [${row."#SAMPLE-T"}, ${row."#SAMPLE-N"}]
-                        //            }
-println(sample_pairs)
+Channel.fromPath( file(params.samplesheet) ) // read the .csv file into a channel
+                        .splitCsv(header: true) // split .csv with header
+                        .map { row -> // map each row in the .csv to files in the bam dir
+                            [
+                            "sample_tumor_ID":"${row."#SAMPLE-T"}",
+                            "sample_tumor_bam":file("${params.bam_dir}/${row."#SAMPLE-T"}.bam"),
+                            "sample_tumor_bai":file("${params.bam_dir}/${row."#SAMPLE-T"}.bam.bai"),
+                            "sample_normal_ID":"${row."#SAMPLE-N"}",
+                            "sample_normal_bam":file("${params.bam_dir}/${row."#SAMPLE-N"}.bam"),
+                            "sample_normal_bai":file("${params.bam_dir}/${row."#SAMPLE-N"}.bam.bai")
+                            ]
+                        }
+                        .into{ sample_pairs; sample_pairs_subscr }
 
-// tuple = Channel.from( [1, 'alpha'], [2, 'beta'], [3, 'delta'] )
-// println(tuple)
+// testing out mapping .csv; print to console
+sample_pairs_subscr.subscribe { row -> println "${row}"}
+
 
 process match_samples {
     input:
-    set val(sample_tumor), val(sample_normal) from sample_pairs
+    set val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs
 
-    script:
-    """
-    echo "tumor: ${sample_tumor}, normal: ${sample_normal}"
-    """
-
+    exec:
+    println "tumor: ${sample_tumor_ID}, normal: ${sample_normal_ID}"
 }
