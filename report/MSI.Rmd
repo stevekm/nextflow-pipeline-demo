@@ -1,0 +1,129 @@
+---
+output: 
+  html_document: 
+    keep_md: yes
+    toc: true
+    number_sections: true
+    df_print: paged
+params:
+  input_dir: "output/MSI"
+  samplesheet: "samples.pairs.csv"
+  tumor_colname: "Tumor" 
+  normal_colname: "Normal"
+  msisensor_file: ".msisensor"
+  msisensor_dis_file: ".msisensor_dis"
+  msisensor_germline_file: ".msisensor_germline"
+  msisensor_somatic_file: ".msisensor_somatic"
+---
+
+# Microsatellite Instability
+
+```{r setup, include=FALSE, echo=FALSE}
+# toc_float: true
+knitr::opts_chunk$set(echo = FALSE)
+library("ggplot2")
+library("data.table")
+library("reshape2")
+
+rbind_empty <- function(df1, df2){
+    # rbind two df's but check that the first one is not empty, else just return the second
+    if(ncol(df1) < 1){
+        df <- df2
+    } else {
+        df <- rbind(df1, df2)
+    }
+    return(df)
+}
+
+read.msisensor <- function(file){
+    # read an msisensor file into dataframe
+    df <- read.delim(file = file, header = TRUE, sep = '\t', check.names = FALSE)
+    return(df)
+}
+
+read.msisensor.somatic <- function(file){
+    # read an msisensor somatic results file; it might be empty
+    msisensor_somatic_colnames <- c("chromosome", "location", "left_flank", 
+                                    "repeat_times", "repeat_unit_bases", "right_flank", 
+                                    "difference", "P_value", "FDR", "rank")
+    nlines <- length(readLines(file))
+    if(nlines < 1){
+        df <- read.table(text = "", col.names = msisensor_somatic_colnames)
+    } else {
+        df <- read.delim(file = file, header = FALSE, sep = '\t', col.names = msisensor_somatic_colnames)
+    }
+    return(df)
+}
+
+
+input_dir <- params$input_dir
+samplesheet <- params$samplesheet
+tumor_colname <- params$tumor_colname
+normal_colname <- params$normal_colname
+msisensor_file <- params$msisensor_file
+msisensor_dis_file <- params$msisensor_dis_file
+msisensor_germline_file <- params$msisensor_germline_file
+msisensor_somatic_file <- params$msisensor_somatic_file
+
+
+# load samplesheet
+samplesheet_df <- read.delim(file = samplesheet, header = TRUE, sep = ',', check.names = FALSE)
+setnames(x = samplesheet_df, old = colnames(samplesheet_df), new = c(tumor_colname, normal_colname))
+
+# get list of sample comparisons that should have been done
+comparisons_list <- list()
+comparisons <- sprintf("%s_%s", as.character(samplesheet_df[[tumor_colname]]), as.character(samplesheet_df[[normal_colname]]))
+for(comparison in comparisons){
+    comparison_msisensor_file <- file.path(input_dir, sprintf("%s%s", comparison, msisensor_file))
+    comparison_msisensor_dis_file <- file.path(input_dir, sprintf("%s%s", comparison, msisensor_dis_file))
+    comparison_msisensor_germline_file <- file.path(input_dir, sprintf("%s%s", comparison, msisensor_germline_file))
+    comparison_msisensor_somatic_file <- file.path(input_dir, sprintf("%s%s", comparison, msisensor_somatic_file))
+    
+    comparisons_list[[comparison]] <- list()
+    comparisons_list[[comparison]][["msisensor_file"]] <- comparison_msisensor_file
+    comparisons_list[[comparison]][["msisensor_dis_file"]] <- comparison_msisensor_dis_file
+    comparisons_list[[comparison]][["msisensor_germline_file"]] <- comparison_msisensor_germline_file
+    comparisons_list[[comparison]][["msisensor_somatic_file"]] <- comparison_msisensor_somatic_file
+}
+
+
+
+
+# load data into df's to use in report
+msisensor_df <- data.frame()
+msisensor_somatic_df <- data.frame()
+for(i in seq(length(comparisons_list))){
+    comparison <- names(comparisons_list)[i]
+    comparison_list <- comparisons_list[[comparison]]
+    
+    comparison_msisensor <- read.msisensor(file = comparison_list[["msisensor_file"]])
+    comparison_msisensor[["Comparison"]] <- rep(x = comparison, nrow(comparison_msisensor))
+    msisensor_df <- rbind_empty(msisensor_df, comparison_msisensor)
+
+    comparison_msisensor_somatic <- read.msisensor.somatic(file = comparison_list[["msisensor_somatic_file"]])
+    comparison_msisensor_somatic[["Comparison"]] <- rep(x = comparison, nrow(comparison_msisensor_somatic))
+    msisensor_somatic_df <- rbind_empty(msisensor_somatic_df, comparison_msisensor_somatic)
+}
+
+
+
+save.image()
+```
+
+## Samples
+
+```{r}
+samplesheet_df
+```
+
+## Stats
+
+```{r}
+msisensor_df
+```
+
+## Somatic Sites
+
+```{r}
+msisensor_somatic_df
+```
