@@ -1,4 +1,4 @@
-params.bam_dir = "BAM-BWA"
+params.bam_dir = "bam-input"
 params.pairs_sheet = "samples.pairs.csv"
 params.regions_bed = "targets.bed"
 
