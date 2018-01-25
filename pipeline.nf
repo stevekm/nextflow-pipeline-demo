@@ -17,14 +17,15 @@ Channel.fromPath( file(params.pairs_sheet) ) // read the .csv file into a channe
                             "sample_normal_bai":file("${params.bam_dir}/${sample_normal_ID}.bam.bai")
                             ]
                         }
-                        .into {sample_pairs; sample_pairs2}
+                        .into {sample_pairs_demo;
+                            sample_pairs_msi}
 
 
 
 process match_samples {
     executor "local"
     input:
-    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs
+    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_demo
 
     exec:
     println "sample: ${sample_ID}, tumor: ${sample_tumor_ID}, sample_tumor_bam: ${sample_tumor_bam}"
@@ -43,9 +44,9 @@ process msisensor {
         }
 
     input:
-    file microsatellites from params.microsatellites
-    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs
-    file regions_bed from file(params.regions_bed)
+    file microsatellites from file(params.microsatellites)
+    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_msi
+    file regions_bed name "regions.bed" from file(params.regions_bed)
 
     output:
     file 'msisensor'
@@ -55,6 +56,6 @@ process msisensor {
 
     script:
     """
-    $params.msisensor_bin msi -d $microsatellites -n $bam_normal -t $bam_tumor -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
+    $params.msisensor_bin msi -d $microsatellites -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
     """
 }
