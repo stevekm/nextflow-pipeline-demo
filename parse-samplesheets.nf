@@ -21,9 +21,11 @@ sample_pairs_subscr.subscribe { row -> println "${row}"}
 
 
 process match_samples {
+    executor "local"
     input:
     set val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs
 
     exec:
-    println "tumor: ${sample_tumor_ID}, normal: ${sample_normal_ID}"
+    println "tumor: ${sample_tumor_ID}, sample_tumor_bam: ${sample_tumor_bam}"
+
 }
