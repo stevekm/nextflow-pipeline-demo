@@ -1,4 +1,4 @@
-params.samplesheet = "samples.pairs.controls.csv" // .csv samplesheet with tumor-normal sample ID pairs
+params.samplesheet = "samples.pairs.csv" // .csv samplesheet with tumor-normal sample ID pairs
 params.bam_dir = "BAM-BWA" // directory containing .bam files for the samples
 
 
