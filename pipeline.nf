@@ -1,6 +1,8 @@
 params.bam_dir = "bam-input"
 params.pairs_sheet = "samples.pairs.csv"
 params.regions_bed = "targets.bed"
+params.variants_sheet = 'pipeline-input/summary.VCF-GATK-HC-annot.csv'
+params.variants_dir = 'pipeline-input/VCF-GATK-HC'
 
 Channel.fromPath( file(params.pairs_sheet) ) // read the .csv file into a channel
                         .splitCsv(header: true) // split .csv with header
@@ -20,7 +22,16 @@ Channel.fromPath( file(params.pairs_sheet) ) // read the .csv file into a channe
                         .into {sample_pairs_demo;
                             sample_pairs_msi}
 
-
+Channel.fromPath( file(params.variants_sheet) )
+                    .splitCsv(header: true)
+                    .map{row ->
+                        sample_ID = row."${params.variant_sample_header}"
+                        return [
+                        sample_ID,
+                        file("${params.variants_dir}/${sample_ID}.vcf")
+                        ]
+                    }
+                    .into { sample_variants }
 
 process match_samples {
     executor "local"
@@ -57,5 +68,27 @@ process msisensor {
     script:
     """
     $params.msisensor_bin msi -d $microsatellites -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
+    """
+}
+
+process deconstructSigs_signatures {
+    publishDir "${params.output_dir}/genomic_profiles" , mode: 'move', overwrite: true,
+        saveAs: {filename ->
+            if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
+            else if (filename == 'sample_signatures.pdf') "${sample_ID}_signatures.pdf"
+            else if (filename == 'sample_signatures_pie.pdf') "${sample_ID}_signatures_pie.pdf"
+            else null
+        }
+    input:
+    set val(sample_ID), file(sample_vcf) from sample_variants
+
+    output:
+    file 'sample_signatures.Rds'
+    file 'sample_signatures.pdf'
+    file 'sample_signatures_pie.pdf'
+
+    script:
+    """
+    $params.deconstructSigs_make_signatures_script "$sample_vcf"
     """
 }

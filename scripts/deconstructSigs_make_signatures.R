@@ -1,8 +1,9 @@
 #!/usr/bin/env Rscript
 args <- commandArgs(T)
-sampleID <- args[1]
-vcf_file <- args[2]
-# sampleID <- "SC-SERACARE"
+
+sampleID <- "sample" # sampleID <- args[1]
+
+vcf_file <- args[1]
 # vcf_file <- "pipeline_output/VCF-GATK-HC/SC-SERACARE.vcf"
 
 
@@ -10,7 +11,7 @@ library("BSgenome.Hsapiens.UCSC.hg19")
 library("deconstructSigs")
 
 vcf_colnames <- c("CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", sampleID)
-variants <- read.delim(file = vcf_file, header = FALSE, sep = '\t', 
+variants <- read.delim(file = vcf_file, header = FALSE, sep = '\t',
                        comment.char = '#', col.names = vcf_colnames, check.names = FALSE)
 
 # add sample ID column
@@ -27,11 +28,11 @@ if (nrow(variants) < 55) {
 }
 
 # convert to signatures format
-sigs.input <- mut.to.sigs.input(mut.ref = variants, 
-                                sample.id = "Sample", 
-                                chr = "CHROM", 
-                                pos = "POS", 
-                                ref = "REF", 
+sigs.input <- mut.to.sigs.input(mut.ref = variants,
+                                sample.id = "Sample",
+                                chr = "CHROM",
+                                pos = "POS",
+                                ref = "REF",
                                 alt = "ALT")
 
 # make the signatures
