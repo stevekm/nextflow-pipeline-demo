@@ -34,7 +34,7 @@ process match_samples {
 
 process msisensor {
     clusterOptions '-pe threaded 1-32 -j y'
-    publishDir "${params.output_dir}/${sample_ID}/MSI" , mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/MSI" , mode: 'move', overwrite: true, //"${params.output_dir}/${sample_ID}/MSI"
         saveAs: {filename ->
             if (filename == 'msisensor') "${sample_ID}.msisensor"
             else if (filename == 'msisensor_dis') "${sample_ID}.msisensor_dis"
