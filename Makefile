@@ -12,4 +12,6 @@ clean-output:
 clean-work: 
 	[ -d work ] && mv work oldwork && rm -rf oldwork &
 
-clean: clean-logs clean-output clean-work
+clean: clean-logs clean-work
+
+clean-all: clean clean-output
