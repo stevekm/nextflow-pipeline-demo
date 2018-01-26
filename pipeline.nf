@@ -3,6 +3,8 @@ params.regions_bed = "targets.bed"
 params.probes_bed = "probes.bed"
 
 params.bam_bwa_dir = "${params.input_dir}/BAM-BWA"
+params.bam_gatk_ra_rc_dir = "${params.input_dir}/BAM-GATK-RA-RC"
+
 params.pairs_sheet = "${params.input_dir}/samples.pairs.csv"
 params.variants_sheet = "${params.input_dir}/summary.VCF-GATK-HC-annot.csv"
 params.variants_gatk_hc_dir = "${params.input_dir}/VCF-GATK-HC"
@@ -40,10 +42,38 @@ Channel.fromPath( file(params.variants_sheet) )
                         file("${params.variants_gatk_hc_dir}/${sample_ID}.vcf")
                         ]
                     }
-                    .into { sample_variants }
+                    .into { sample_variants_deconstructSigs }
 
-
-
+Channel.fromPath( file(params.variants_sheet) )
+                    .splitCsv(header: true)
+                    .map{row ->
+                        sample_ID = row."${params.variant_sample_header}"
+                        // println [sample_ID, row].join('\t')
+                        println "-------------"
+                        println "--- start csv row mapping ----"
+                        println "row: " + row
+                        println 'sample_ID: ' + sample_ID
+                        println "${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam"
+                        println file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam")
+                        println "${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam.bai"
+                        println file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam.bai")
+                        println "--- end csv row mapping ----"
+                        println "-------------"
+                        return [
+                        sample_ID,
+                        file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam"),
+                        file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam.bai")
+                        ]
+                    }
+                    .into { sample_bam_delly2; sample_bam_delly2_subscr }
+//
+// sample_bam_delly2_subscr.subscribe { item ->
+//                                     println "-------------"
+//                                     println "--- start sample_bam_delly2_subscr row print ----"
+//                                     println item.join("\t")
+//                                     println "--- end sample_bam_delly2_subscr row print ----"
+//                                     println "-------------"
+//                                 }
 
 //
 // pipeline steps
@@ -99,7 +129,7 @@ process deconstructSigs_signatures {
             else null
         }
     input:
-    set val(sample_ID), file(sample_vcf) from sample_variants
+    set val(sample_ID), file(sample_vcf) from sample_variants_deconstructSigs
 
     output:
     file 'sample_signatures.Rds'
@@ -110,4 +140,50 @@ process deconstructSigs_signatures {
     """
     $params.deconstructSigs_make_signatures_script "$sample_vcf"
     """
+}
+
+process delly2 {
+    tag { sample_ID }
+    publishDir "${params.output_dir}/SNV-Delly2", mode: 'move', overwrite: true,
+        saveAs: {filename ->
+            if (filename == 'deletions.vcf') "${sample_ID}_deletions.vcf"
+            else if (filename == 'duplications.vcf') "${sample_ID}_duplications.vcf"
+            else if (filename == 'inversions.vcf') "${sample_ID}_inversions.vcf"
+            else if (filename == 'translocations.vcf') "${sample_ID}_translocations.vcf"
+            else if (filename == 'insertions.vcf') "${sample_ID}_insertions.vcf"
+            else null
+        }
+
+    input:
+    set val(sample_ID), file(bam_gatk_ra_rc), file(bai_gatk_ra_rc) from sample_bam_delly2
+
+    output:
+    file "deletions.vcf"
+    file "duplications.vcf"
+    file "inversions.vcf"
+    file "translocations.vcf"
+    file "insertions.vcf"
+
+    script:
+    """
+    $params.delly2_bin call -t DEL -g ${params.hg19_fa} -o deletions.bcf "${bam_gatk_ra_rc}"
+    $params.delly2_bcftools_bin view deletions.bcf > deletions.vcf
+    
+    $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${bam_gatk_ra_rc}"
+    $params.delly2_bcftools_bin view duplications.bcf > duplications.vcf
+
+    $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${bam_gatk_ra_rc}"
+    $params.delly2_bcftools_bin view inversions.bcf > inversions.vcf
+
+    $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${bam_gatk_ra_rc}"
+    $params.delly2_bcftools_bin view translocations.bcf > translocations.vcf
+
+    $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${bam_gatk_ra_rc}"
+    $params.delly2_bcftools_bin view insertions.bcf > insertions.vcf
+    """
+    // // """
+    // echo "\$(pwd)"
+    // [ ! -e "${bam_gatk_ra_rc}" ] && echo "not found: ${bam_gatk_ra_rc}" &&  exit 1
+    // [ ! -e "${bam_gatk_ra_rc}.bai" ] && echo "not found: ${bam_gatk_ra_rc}.bai" && exit 1
+    // """
 }
