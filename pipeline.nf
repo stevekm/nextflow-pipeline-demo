@@ -49,6 +49,7 @@ Channel.fromPath( file(params.variants_sheet) )
 // pipeline steps
 //
 process match_samples {
+    tag { sample_ID }
     executor "local"
     input:
     set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_demo
@@ -59,6 +60,7 @@ process match_samples {
 }
 
 process msisensor {
+    tag { sample_ID }
     clusterOptions '-pe threaded 1-8 -j y'
     publishDir "${params.output_dir}/MSI" , mode: 'move', overwrite: true, //"${params.output_dir}/${sample_ID}/MSI"
         saveAs: {filename ->
@@ -87,6 +89,8 @@ process msisensor {
 }
 
 process deconstructSigs_signatures {
+    tag { sample_ID }
+    errorStrategy 'ignore' // script fails if there are no variants
     publishDir "${params.output_dir}/genomic_profiles" , mode: 'move', overwrite: true,
         saveAs: {filename ->
             if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"

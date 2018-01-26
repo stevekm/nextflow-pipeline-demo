@@ -21,8 +21,8 @@ Make a symlink to your sns analysis output location
 ln -fs /path/to/sns_output sns-dir
 ```
 
-Run
+Run (recommended to run in `screen`)
 
 ```bash
-./nextflow run
+./nextflow run pipeline.nf
 ```
