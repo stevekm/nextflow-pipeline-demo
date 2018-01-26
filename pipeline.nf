@@ -65,15 +65,16 @@ Channel.fromPath( file(params.variants_sheet) )
                         file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam.bai")
                         ]
                     }
-                    .into { sample_bam_delly2; sample_bam_delly2_subscr }
-//
-// sample_bam_delly2_subscr.subscribe { item ->
-//                                     println "-------------"
-//                                     println "--- start sample_bam_delly2_subscr row print ----"
-//                                     println item.join("\t")
-//                                     println "--- end sample_bam_delly2_subscr row print ----"
-//                                     println "-------------"
-//                                 }
+                    .into {
+                        sample_bam_delly2;
+                        sample_bam_delly2_deletions;
+                        sample_bam_delly2_duplications;
+                        sample_bam_delly2_inversions;
+                        sample_bam_delly2_translocations;
+                        sample_bam_delly2_insertions;
+                        sample_bam_gatk_coverage_custom;
+                        sample_bam_demo
+                    }
 
 //
 // pipeline steps
@@ -88,6 +89,17 @@ process match_samples {
     println "sample: ${sample_ID}, tumor: ${sample_tumor_ID}, sample_tumor_bam: ${sample_tumor_bam}"
 
 }
+
+process check_samples_mapping {
+    tag { sample_ID }
+    executor "local"
+    input:
+    set val(sample_ID), file(bam_gatk_ra_rc), file(bai_gatk_ra_rc) from sample_bam_demo
+
+    exec:
+    println "sample: ${sample_ID}, bam: ${bam_gatk_ra_rc}, bai: ${bai_gatk_ra_rc}"
+}
+
 
 process msisensor {
     tag { sample_ID }
@@ -121,7 +133,7 @@ process msisensor {
 process deconstructSigs_signatures {
     tag { sample_ID }
     errorStrategy 'ignore' // script fails if there are no variants
-    publishDir "${params.output_dir}/genomic_profiles" , mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/Genomic_Profiles" , mode: 'move', overwrite: true,
         saveAs: {filename ->
             if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
             else if (filename == 'sample_signatures.pdf') "${sample_ID}_signatures.pdf"
@@ -142,48 +154,177 @@ process deconstructSigs_signatures {
     """
 }
 
-process delly2 {
+// process delly2 {
+//     tag { sample_ID }
+//     publishDir "${params.output_dir}/SNV-Delly2", mode: 'move', overwrite: true,
+//         saveAs: {filename ->
+//             if (filename == 'deletions.vcf') "${sample_ID}_deletions.vcf"
+//             else if (filename == 'duplications.vcf') "${sample_ID}_duplications.vcf"
+//             else if (filename == 'inversions.vcf') "${sample_ID}_inversions.vcf"
+//             else if (filename == 'translocations.vcf') "${sample_ID}_translocations.vcf"
+//             else if (filename == 'insertions.vcf') "${sample_ID}_insertions.vcf"
+//             else null
+//         }
+//
+//     input:
+//     set val(sample_ID), file(bam_gatk_ra_rc), file(bai_gatk_ra_rc) from sample_bam_delly2
+//
+//     output:
+//     file "deletions.vcf"
+//     file "duplications.vcf"
+//     file "inversions.vcf"
+//     file "translocations.vcf"
+//     file "insertions.vcf"
+//
+//     script:
+//     """
+//     $params.delly2_bin call -t DEL -g ${params.hg19_fa} -o deletions.bcf "${bam_gatk_ra_rc}"
+//     $params.delly2_bcftools_bin view deletions.bcf > deletions.vcf
+//
+//     $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${bam_gatk_ra_rc}"
+//     $params.delly2_bcftools_bin view duplications.bcf > duplications.vcf
+//
+//     $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${bam_gatk_ra_rc}"
+//     $params.delly2_bcftools_bin view inversions.bcf > inversions.vcf
+//
+//     $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${bam_gatk_ra_rc}"
+//     $params.delly2_bcftools_bin view translocations.bcf > translocations.vcf
+//
+//     $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${bam_gatk_ra_rc}"
+//     $params.delly2_bcftools_bin view insertions.bcf > insertions.vcf
+//     """
+// }
+
+
+process delly2_deletions {
     tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2", mode: 'move', overwrite: true,
-        saveAs: {filename ->
-            if (filename == 'deletions.vcf') "${sample_ID}_deletions.vcf"
-            else if (filename == 'duplications.vcf') "${sample_ID}_duplications.vcf"
-            else if (filename == 'inversions.vcf') "${sample_ID}_inversions.vcf"
-            else if (filename == 'translocations.vcf') "${sample_ID}_translocations.vcf"
-            else if (filename == 'insertions.vcf') "${sample_ID}_insertions.vcf"
-            else null
-        }
+    publishDir "${params.output_dir}/SNV-Delly2-deletions", mode: 'move', overwrite: true,
+        saveAs: { filename -> "${sample_ID}_deletions.vcf" }
 
     input:
-    set val(sample_ID), file(bam_gatk_ra_rc), file(bai_gatk_ra_rc) from sample_bam_delly2
+    set val(sample_ID), file(bam_gatk_ra_rc), file(bai_gatk_ra_rc) from sample_bam_delly2_deletions
 
     output:
     file "deletions.vcf"
-    file "duplications.vcf"
-    file "inversions.vcf"
-    file "translocations.vcf"
-    file "insertions.vcf"
 
     script:
     """
     $params.delly2_bin call -t DEL -g ${params.hg19_fa} -o deletions.bcf "${bam_gatk_ra_rc}"
     $params.delly2_bcftools_bin view deletions.bcf > deletions.vcf
-    
+    """
+}
+
+process delly2_duplications {
+    tag { sample_ID }
+    publishDir "${params.output_dir}/SNV-Delly2-duplications", mode: 'move', overwrite: true,
+        saveAs: { filename -> "${sample_ID}_duplications.vcf" }
+
+    input:
+    set val(sample_ID), file(bam_gatk_ra_rc), file(bai_gatk_ra_rc) from sample_bam_delly2_duplications
+
+    output:
+    file "duplications.vcf"
+
+    script:
+    """
     $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${bam_gatk_ra_rc}"
     $params.delly2_bcftools_bin view duplications.bcf > duplications.vcf
+    """
+}
 
+process delly2_inversions {
+    tag { sample_ID }
+    publishDir "${params.output_dir}/SNV-Delly2-inversions", mode: 'move', overwrite: true,
+        saveAs: { filename -> "${sample_ID}_inversions.vcf" }
+
+    input:
+    set val(sample_ID), file(bam_gatk_ra_rc), file(bai_gatk_ra_rc) from sample_bam_delly2_inversions
+
+    output:
+    file "inversions.vcf"
+
+    script:
+    """
     $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${bam_gatk_ra_rc}"
     $params.delly2_bcftools_bin view inversions.bcf > inversions.vcf
+    """
+}
 
+process delly2_translocations {
+    tag { sample_ID }
+    publishDir "${params.output_dir}/SNV-Delly2-translocations", mode: 'move', overwrite: true,
+        saveAs: { filename -> "${sample_ID}_translocations.vcf" }
+
+    input:
+    set val(sample_ID), file(bam_gatk_ra_rc), file(bai_gatk_ra_rc) from sample_bam_delly2_translocations
+
+    output:
+    file "translocations.vcf"
+
+    script:
+    """
     $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${bam_gatk_ra_rc}"
     $params.delly2_bcftools_bin view translocations.bcf > translocations.vcf
+    """
+}
 
+process delly2_insertions {
+    tag { sample_ID }
+    publishDir "${params.output_dir}/SNV-Delly2-insertions", mode: 'move', overwrite: true,
+        saveAs: { filename -> "${sample_ID}_insertions.vcf" }
+
+    input:
+    set val(sample_ID), file(bam_gatk_ra_rc), file(bai_gatk_ra_rc) from sample_bam_delly2_insertions
+
+    output:
+    file "insertions.vcf"
+
+    script:
+    """
     $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${bam_gatk_ra_rc}"
     $params.delly2_bcftools_bin view insertions.bcf > insertions.vcf
     """
-    // // """
-    // echo "\$(pwd)"
-    // [ ! -e "${bam_gatk_ra_rc}" ] && echo "not found: ${bam_gatk_ra_rc}" &&  exit 1
-    // [ ! -e "${bam_gatk_ra_rc}.bai" ] && echo "not found: ${bam_gatk_ra_rc}.bai" && exit 1
-    // """
+}
+
+
+process  gatk_coverage_custom {
+    tag { sample_ID }
+    publishDir "${params.output_dir}/Coverage-GATK-Custom" , mode: 'move', overwrite: true,
+        saveAs: {filename ->
+            if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
+            else if (filename == 'sample_signatures.pdf') "${sample_ID}_signatures.pdf"
+            else if (filename == 'sample_signatures_pie.pdf') "${sample_ID}_signatures_pie.pdf"
+            else null
+        }
+    input:
+    file regions_bed name "regions.bed" from file(params.regions_bed)
+    set val(sample_ID), file(bam_gatk_ra_rc), file(bai_gatk_ra_rc) from sample_bam_gatk_coverage_custom
+
+    output:
+    file "${sample_ID}.sample_cumulative_coverage_counts"
+    file "${sample_ID}.sample_cumulative_coverage_proportions"
+    file "${sample_ID}.sample_interval_statistics"
+    file "${sample_ID}.sample_interval_summary"
+    file "${sample_ID}.sample_statistics"
+    file "${sample_ID}.sample_summary"
+
+    script:
+    """
+    echo "java -Xms16G -Xmx16G -jar ${params.gatk_bin} -T DepthOfCoverage \
+    --logging_level ERROR \
+    --downsampling_type NONE \
+    --read_filter BadCigar \
+    --reference_sequence ${params.hg19_fa} \
+    --omitDepthOutputAtEachBase \
+    -ct 10 -ct 50 -ct 100 -ct 200 -ct 300 -ct 400 -ct 500 \
+    --intervals ${regions_bed} \
+    --minBaseQuality 20 \
+    --minMappingQuality 20 \
+    --nBins 999 \
+    --start 1 \
+    --stop 1000 \
+    --input_file ${bam_gatk_ra_rc} \
+    --outputFormat csv \
+    --out ${sample_ID}"
+    """
 }
