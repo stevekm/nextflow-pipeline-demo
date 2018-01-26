@@ -1,22 +1,27 @@
-params.bam_dir = "bam-input"
-params.pairs_sheet = "samples.pairs.csv"
+params.input_dir = "sns-dir"
 params.regions_bed = "targets.bed"
-params.variants_sheet = 'pipeline-input/summary.VCF-GATK-HC-annot.csv'
-params.variants_dir = 'pipeline-input/VCF-GATK-HC'
 
+params.bam_bwa_dir = "${params.input_dir}/BAM-BWA"
+params.pairs_sheet = "${params.input_dir}/samples.pairs.csv"
+params.variants_sheet = "${params.input_dir}/summary.VCF-GATK-HC-annot.csv"
+params.variants_gatk_hc_dir = "${params.input_dir}/VCF-GATK-HC"
+
+//
+// read sample pairs from samplesheet
+//
 Channel.fromPath( file(params.pairs_sheet) ) // read the .csv file into a channel
                         .splitCsv(header: true) // split .csv with header
                         .map { row -> // map each row in the .csv to files in the bam dir
                             sample_tumor_ID = row."${params.tumor_header}"
                             sample_normal_ID = row."${params.normal_header}"
                             return [
-                            "sample_ID":"${sample_tumor_ID}_${sample_normal_ID}",
-                            "sample_tumor_ID":"${sample_tumor_ID}",
-                            "sample_tumor_bam":file("${params.bam_dir}/${sample_tumor_ID}.bam"),
-                            "sample_tumor_bai":file("${params.bam_dir}/${sample_tumor_ID}.bam.bai"),
-                            "sample_normal_ID":"${sample_normal_ID}",
-                            "sample_normal_bam":file("${params.bam_dir}/${sample_normal_ID}.bam"),
-                            "sample_normal_bai":file("${params.bam_dir}/${sample_normal_ID}.bam.bai")
+                            "${sample_tumor_ID}_${sample_normal_ID}", // sample comparison ID
+                            "${sample_tumor_ID}",
+                            file("${params.bam_bwa_dir}/${sample_tumor_ID}.bam"),
+                            file("${params.bam_bwa_dir}/${sample_tumor_ID}.bam.bai"),
+                            "${sample_normal_ID}",
+                            file("${params.bam_bwa_dir}/${sample_normal_ID}.bam"),
+                            file("${params.bam_bwa_dir}/${sample_normal_ID}.bam.bai")
                             ]
                         }
                         .into {sample_pairs_demo;
@@ -28,7 +33,7 @@ Channel.fromPath( file(params.variants_sheet) )
                         sample_ID = row."${params.variant_sample_header}"
                         return [
                         sample_ID,
-                        file("${params.variants_dir}/${sample_ID}.vcf")
+                        file("${params.variants_gatk_hc_dir}/${sample_ID}.vcf")
                         ]
                     }
                     .into { sample_variants }
