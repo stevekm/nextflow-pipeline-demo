@@ -1,5 +1,6 @@
 params.input_dir = "sns-dir"
 params.regions_bed = "targets.bed"
+params.probes_bed = "probes.bed"
 
 params.bam_bwa_dir = "${params.input_dir}/BAM-BWA"
 params.pairs_sheet = "${params.input_dir}/samples.pairs.csv"
@@ -27,6 +28,9 @@ Channel.fromPath( file(params.pairs_sheet) ) // read the .csv file into a channe
                         .into {sample_pairs_demo;
                             sample_pairs_msi}
 
+//
+// read samples from variants summary sheet
+//
 Channel.fromPath( file(params.variants_sheet) )
                     .splitCsv(header: true)
                     .map{row ->
@@ -38,6 +42,12 @@ Channel.fromPath( file(params.variants_sheet) )
                     }
                     .into { sample_variants }
 
+
+
+
+//
+// pipeline steps
+//
 process match_samples {
     executor "local"
     input:
@@ -49,7 +59,7 @@ process match_samples {
 }
 
 process msisensor {
-    clusterOptions '-pe threaded 1-32 -j y'
+    clusterOptions '-pe threaded 1-8 -j y'
     publishDir "${params.output_dir}/MSI" , mode: 'move', overwrite: true, //"${params.output_dir}/${sample_ID}/MSI"
         saveAs: {filename ->
             if (filename == 'msisensor') "${sample_ID}.msisensor"
