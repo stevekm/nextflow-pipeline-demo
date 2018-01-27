@@ -126,6 +126,8 @@ process msisensor {
     $params.samtools_bin index ${sample_normal_bam}
     $params.samtools_bin index ${sample_tumor_bam}
     $params.msisensor_bin msi -d $microsatellites -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
+    rm -f ${sample_normal_bam}.bai
+    rm -f ${sample_tumor_bam}.bai
     """
 }
 
@@ -211,6 +213,7 @@ process delly2_deletions {
     $params.samtools_bin index ${bam_gatk_ra_rc}
     $params.delly2_bin call -t DEL -g ${params.hg19_fa} -o deletions.bcf "${bam_gatk_ra_rc}"
     $params.delly2_bcftools_bin view deletions.bcf > deletions.vcf
+    rm -f ${bam_gatk_ra_rc}.bai
     """
 }
 
@@ -230,6 +233,7 @@ process delly2_duplications {
     $params.samtools_bin index ${bam_gatk_ra_rc}
     $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${bam_gatk_ra_rc}"
     $params.delly2_bcftools_bin view duplications.bcf > duplications.vcf
+    rm -f ${bam_gatk_ra_rc}.bai
     """
 }
 
@@ -249,6 +253,7 @@ process delly2_inversions {
     $params.samtools_bin index ${bam_gatk_ra_rc}
     $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${bam_gatk_ra_rc}"
     $params.delly2_bcftools_bin view inversions.bcf > inversions.vcf
+    rm -f ${bam_gatk_ra_rc}.bai
     """
 }
 
@@ -268,6 +273,7 @@ process delly2_translocations {
     $params.samtools_bin index ${bam_gatk_ra_rc}
     $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${bam_gatk_ra_rc}"
     $params.delly2_bcftools_bin view translocations.bcf > translocations.vcf
+    rm -f ${bam_gatk_ra_rc}.bai
     """
 }
 
@@ -287,6 +293,7 @@ process delly2_insertions {
     $params.samtools_bin index ${bam_gatk_ra_rc}
     $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${bam_gatk_ra_rc}"
     $params.delly2_bcftools_bin view insertions.bcf > insertions.vcf
+    rm -f ${bam_gatk_ra_rc}.bai
     """
 }
 
@@ -326,5 +333,6 @@ process  gatk_coverage_custom {
     --input_file ${bam_gatk_ra_rc} \
     --outputFormat csv \
     --out ${sample_ID}
+    rm -f ${bam_gatk_ra_rc}.bai
     """
 }
