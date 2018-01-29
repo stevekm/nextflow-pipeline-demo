@@ -64,30 +64,31 @@ Channel.fromPath( file(params.variants_sheet) )
                         sample_bam_delly2_inversions;
                         sample_bam_delly2_translocations;
                         sample_bam_delly2_insertions;
-                    }
-
-// GATK channel; include .bai
-Channel.fromPath( file(params.variants_sheet) )
-                    .splitCsv(header: true)
-                    .map{row ->
-                        def sample_ID = row."${params.variant_sample_header}"
-                        def sample_bam = file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam")
-                        def sample_bai = file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam.bai")
-                        return [ sample_ID, sample_bam, sample_bai ]
-                    }
-                    .into {
-                        sample_bam_delly2_deletions;
-                        sample_bam_delly2_duplications;
-                        sample_bam_delly2_inversions;
-                        sample_bam_delly2_translocations;
-                        sample_bam_delly2_insertions;
                         sample_bam_gatk_coverage_custom;
                         sample_bam_demo
                     }
 
+// GATK channel; include .bai
+// Channel.fromPath( file(params.variants_sheet) )
+//                     .splitCsv(header: true)
+//                     .map{row ->
+//                         def sample_ID = row."${params.variant_sample_header}"
+//                         def sample_bam = file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam")
+//                         def sample_bai = file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam.bai")
+//                         return [ sample_ID, sample_bam, sample_bai ]
+//                     }
+//                     .into {
+//                         sample_bam_gatk_coverage_custom;
+//                         sample_bam_demo
+//                     }
+
+
 //
 // pipeline steps
 //
+
+
+// DEBUGGING STEPS
 process match_samples {
     tag { sample_ID }
     executor "local"
@@ -100,8 +101,20 @@ process match_samples {
 }
 
 
+process check_samples_mapping {
+    tag { sample_ID }
+    executor "local"
+    input:
+    set val(sample_ID), file(sample_bam) from sample_bam_demo
+
+    exec:
+    println "sample_ID: ${sample_ID}, sample_bam: ${sample_bam}"
+}
+
+
 process msisensor {
     tag { sample_ID }
+    module 'samtools/1.3'
     clusterOptions '-pe threaded 1-4 -j y'
     publishDir "${params.output_dir}/MSI" , mode: 'move', overwrite: true, //"${params.output_dir}/${sample_ID}/MSI"
         saveAs: {filename ->
@@ -130,20 +143,12 @@ process msisensor {
     script:
     """
     echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\tTASK_ID:\${TASK_ID:-none}"
+    which samtools
+    module list
     $params.msisensor_bin msi -d ${params.microsatellites} -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
     """
 }
 
-
-process check_samples_mapping {
-    tag { sample_ID }
-    executor "local"
-    input:
-    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_demo
-
-    exec:
-    println "sample_ID: ${sample_ID}, sample_bam: ${sample_bam}, sample_bai: ${sample_bai}"
-}
 
 
 process deconstructSigs_signatures {
@@ -171,6 +176,8 @@ process deconstructSigs_signatures {
 }
 
 
+
+// DELLY2 SNV STEPS
 process delly2_deletions {
     tag { sample_ID }
     publishDir "${params.output_dir}/SNV-Delly2-deletions", mode: 'move', overwrite: true,
@@ -272,13 +279,15 @@ process delly2_insertions {
 }
 
 
+
 process  gatk_coverage_custom {
     tag { sample_ID }
+    module 'samtools/1.3'
     publishDir "${params.output_dir}/Coverage-GATK-Custom" , mode: 'move', overwrite: true
 
     input:
     file regions_bed from file(params.regions_bed) // name "regions.bed"
-    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_gatk_coverage_custom
+    set val(sample_ID), file(sample_bam) from sample_bam_gatk_coverage_custom
 
     output:
     file "${sample_ID}.sample_cumulative_coverage_counts"
@@ -290,6 +299,8 @@ process  gatk_coverage_custom {
 
     script:
     """
+    $params.samtools_bin index ${sample_bam}
+
     java -Xms16G -Xmx16G -jar ${params.gatk_bin} -T DepthOfCoverage \
     --logging_level ERROR \
     --downsampling_type NONE \
@@ -306,5 +317,7 @@ process  gatk_coverage_custom {
     --input_file ${sample_bam} \
     --outputFormat csv \
     --out ${sample_ID}
+
+    rm -f ${sample_bam}.bai
     """
 }
