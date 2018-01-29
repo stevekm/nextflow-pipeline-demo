@@ -9,6 +9,9 @@ params.pairs_sheet = "${params.input_dir}/samples.pairs.csv"
 params.variants_sheet = "${params.input_dir}/summary.VCF-GATK-HC-annot.csv"
 params.variants_gatk_hc_dir = "${params.input_dir}/VCF-GATK-HC"
 
+params.variants_gatk_hc_annot_dir = "${params.input_dir}/VCF-GATK-HC-annot"
+// /ifs/data/molecpathlab/PNET_GYN/sns_WES/VCF-GATK-HC-annot/256.combined.txt
+
 //
 // read sample pairs from samplesheet
 //
@@ -22,7 +25,11 @@ Channel.fromPath( file(params.pairs_sheet) ) // read the .csv file into a channe
                             def sample_normal_bam = file("${params.bam_gatk_ra_rc_dir}/${sample_normal_ID}.dd.ra.rc.bam")
                             def sample_normal_bai = file("${params.bam_gatk_ra_rc_dir}/${sample_normal_ID}.dd.ra.rc.bam.bai")
                             def sample_ID = "${sample_tumor_ID}_${sample_normal_ID}" // sample comparison ID
-                            return [ sample_ID, sample_tumor_ID, sample_tumor_bam, sample_tumor_bai, sample_normal_ID, sample_normal_bam, sample_normal_bai ]
+                            return [ sample_ID, sample_tumor_ID, sample_tumor_bam,
+                                    // sample_tumor_bai,
+                                    sample_normal_ID, sample_normal_bam
+                                    // sample_normal_bai
+                                    ]
                         }
                         .into {sample_pairs_demo;
                             sample_pairs_msi}
@@ -82,6 +89,23 @@ Channel.fromPath( file(params.variants_sheet) )
 //                         sample_bam_demo
 //                     }
 
+// VAF plot channel
+Channel.fromPath( file(params.variants_sheet) )
+                    .splitCsv(header: true)
+                    .map{row ->
+                        def sample_ID = row."${params.variant_sample_header}"
+                        def sample_vcf_annot = file("${params.variants_gatk_hc_annot_dir}/${sample_ID}.combined.txt")
+                        return [ sample_ID, sample_vcf_annot ]
+                    }
+                    .into {
+                        sample_vcf_annot;
+                        sample_vcf_annot2
+                    }
+
+
+
+
+
 
 //
 // pipeline steps
@@ -93,10 +117,12 @@ process match_samples {
     tag { sample_ID }
     executor "local"
     input:
-    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_demo
+    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), val(sample_normal_ID), file(sample_normal_bam) from sample_pairs_demo
+    // set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_demo
 
     exec:
-    println "sample_ID: ${sample_ID}, sample_tumor_ID: ${sample_tumor_ID}, sample_tumor_bam: ${sample_tumor_bam}, sample_tumor_bai: ${sample_tumor_bai}, sample_normal_ID: ${sample_normal_ID}, sample_normal_bam: ${sample_normal_bam}, sample_normal_bai: ${sample_normal_bai}"
+    println "sample_ID: ${sample_ID}, sample_tumor_ID: ${sample_tumor_ID}, sample_tumor_bam: ${sample_tumor_bam}, sample_normal_ID: ${sample_normal_ID}, sample_normal_bam: ${sample_normal_bam}"
+    // println "sample_ID: ${sample_ID}, sample_tumor_ID: ${sample_tumor_ID}, sample_tumor_bam: ${sample_tumor_bam}, sample_tumor_bai: ${sample_tumor_bai}, sample_normal_ID: ${sample_normal_ID}, sample_normal_bam: ${sample_normal_bam}, sample_normal_bai: ${sample_normal_bai}"
 
 }
 
@@ -126,8 +152,9 @@ process msisensor {
         }
 
     input:
-    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_msi
+    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), val(sample_normal_ID), file(sample_normal_bam) from sample_pairs_msi
     file regions_bed from file(params.regions_bed) // name "regions.bed"
+    // set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_msi
     // file microsatellites from file(params.microsatellites)
 
     output:
@@ -136,16 +163,14 @@ process msisensor {
     file 'msisensor_germline'
     file 'msisensor_somatic'
 
-    // $params.samtools_bin index ${sample_normal_bam}
-    // $params.samtools_bin index ${sample_tumor_bam}
-    // rm -f ${sample_normal_bam}.bai
-    // rm -f ${sample_tumor_bam}.bai
     script:
     """
     echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\tTASK_ID:\${TASK_ID:-none}"
     which samtools
-    module list
+    samtools index "$sample_tumor_bam"
+    samtools index "$sample_normal_bam"
     $params.msisensor_bin msi -d ${params.microsatellites} -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
+    rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai"
     """
 }
 
