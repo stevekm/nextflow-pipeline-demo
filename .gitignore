@@ -7,3 +7,5 @@ work/
 MSI.md
 .Rproj.user*
 *.Rproj
+.Rhistory*
+test*
