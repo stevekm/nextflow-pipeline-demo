@@ -346,3 +346,20 @@ process  gatk_coverage_custom {
     rm -f ${sample_bam}.bai
     """
 }
+
+process vaf_distribution_plot {
+    tag { sample_ID }
+    publishDir "${params.output_dir}/VAF-Dist-GATK-HC" , mode: 'move', overwrite: true
+
+    input:
+    set val(sample_ID), file(sample_vcf_annot) from sample_vcf_annot
+
+    output:
+    file "${sample_ID}_vaf_dist.pdf"
+
+    script:
+    """
+    $params.vaf_distribution_plot_script "${sample_ID}" "${sample_vcf_annot}"
+    """
+
+}
