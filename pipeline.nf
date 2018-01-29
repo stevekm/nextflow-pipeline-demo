@@ -39,22 +39,40 @@ Channel.fromPath( file(params.variants_sheet) )
                     }
                     .set { sample_variants_deconstructSigs }
 
+
+
+// Delly2 Channel; dont include the .bai, generate it instead
 Channel.fromPath( file(params.variants_sheet) )
                     .splitCsv(header: true)
                     .map{row ->
                         def sample_ID = row."${params.variant_sample_header}"
                         def sample_bam = file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam")
-                        def sample_bai = file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam.bai")
 
                         println "-------------"
                         println "--- start csv row mapping ----"
                         println "row: ${row}"
                         println "sample_ID: ${sample_ID}"
                         println "sample_bam: ${sample_bam}"
-                        println "sample_bai: ${sample_bai}"
                         println "--- end csv row mapping ----"
                         println "-------------"
 
+                        return [ sample_ID, sample_bam ]
+                    }
+                    .into {
+                        sample_bam_delly2_deletions;
+                        sample_bam_delly2_duplications;
+                        sample_bam_delly2_inversions;
+                        sample_bam_delly2_translocations;
+                        sample_bam_delly2_insertions;
+                    }
+
+// GATK channel; include .bai
+Channel.fromPath( file(params.variants_sheet) )
+                    .splitCsv(header: true)
+                    .map{row ->
+                        def sample_ID = row."${params.variant_sample_header}"
+                        def sample_bam = file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam")
+                        def sample_bai = file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam.bai")
                         return [ sample_ID, sample_bam, sample_bai ]
                     }
                     .into {
@@ -159,17 +177,17 @@ process delly2_deletions {
         saveAs: { filename -> "${sample_ID}_deletions.vcf" }
 
     input:
-    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_delly2_deletions
+    set val(sample_ID), file(sample_bam) from sample_bam_delly2_deletions
 
     output:
     file "deletions.vcf"
 
-    // $params.samtools_bin index ${bam_gatk_ra_rc}
-    // rm -f ${bam_gatk_ra_rc}.bai
     script:
     """
+    $params.samtools_bin index ${sample_bam}
     $params.delly2_bin call -t DEL -g ${params.hg19_fa} -o deletions.bcf "${sample_bam}"
     $params.delly2_bcftools_bin view deletions.bcf > deletions.vcf
+    rm -f ${sample_bam}.bai
     """
 }
 
@@ -179,15 +197,17 @@ process delly2_duplications {
         saveAs: { filename -> "${sample_ID}_duplications.vcf" }
 
     input:
-    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_delly2_duplications
+    set val(sample_ID), file(sample_bam) from sample_bam_delly2_duplications
 
     output:
     file "duplications.vcf"
 
     script:
     """
+    $params.samtools_bin index ${sample_bam}
     $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${sample_bam}"
     $params.delly2_bcftools_bin view duplications.bcf > duplications.vcf
+    rm -f ${sample_bam}.bai
     """
 }
 
@@ -197,15 +217,17 @@ process delly2_inversions {
         saveAs: { filename -> "${sample_ID}_inversions.vcf" }
 
     input:
-    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_delly2_inversions
+    set val(sample_ID), file(sample_bam) from sample_bam_delly2_inversions
 
     output:
     file "inversions.vcf"
 
     script:
     """
+    $params.samtools_bin index ${sample_bam}
     $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${sample_bam}"
     $params.delly2_bcftools_bin view inversions.bcf > inversions.vcf
+    rm -f ${sample_bam}.bai
     """
 }
 
@@ -215,15 +237,17 @@ process delly2_translocations {
         saveAs: { filename -> "${sample_ID}_translocations.vcf" }
 
     input:
-    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_delly2_translocations
+    set val(sample_ID), file(sample_bam) from sample_bam_delly2_translocations
 
     output:
     file "translocations.vcf"
 
     script:
     """
+    $params.samtools_bin index ${sample_bam}
     $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${sample_bam}"
     $params.delly2_bcftools_bin view translocations.bcf > translocations.vcf
+    rm -f ${sample_bam}.bai
     """
 }
 
@@ -233,15 +257,17 @@ process delly2_insertions {
         saveAs: { filename -> "${sample_ID}_insertions.vcf" }
 
     input:
-    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_delly2_insertions
+    set val(sample_ID), file(sample_bam) from sample_bam_delly2_insertions
 
     output:
     file "insertions.vcf"
 
     script:
     """
+    $params.samtools_bin index ${sample_bam}
     $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${sample_bam}"
     $params.delly2_bcftools_bin view insertions.bcf > insertions.vcf
+    rm -f ${sample_bam}.bai
     """
 }
 
