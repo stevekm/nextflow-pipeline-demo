@@ -111,7 +111,7 @@ process msisensor {
     // rm -f ${sample_tumor_bam}.bai
     script:
     """
-    echo "USER:\${USER}\tJOB_ID:\${JOB_ID}\tJOB_NAME:\${JOB_NAME}\tHOSTNAME:\${HOSTNAME}\tTASK_ID:\${TASK_ID}"
+    echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\tTASK_ID:\${TASK_ID:-none}"
     $params.msisensor_bin msi -d ${params.microsatellites} -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
     """
 }
