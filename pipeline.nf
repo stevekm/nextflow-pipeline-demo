@@ -12,6 +12,9 @@ params.variants_gatk_hc_dir = "${params.input_dir}/VCF-GATK-HC"
 params.variants_gatk_hc_annot_dir = "${params.input_dir}/VCF-GATK-HC-annot"
 // /ifs/data/molecpathlab/PNET_GYN/sns_WES/VCF-GATK-HC-annot/256.combined.txt
 
+params.qc_coverage_dir = "${params.input_dir}/QC-coverage"
+// sns-dir/QC-coverage/*.sample_interval_summary
+
 //
 // read sample pairs from samplesheet
 //
@@ -103,6 +106,19 @@ Channel.fromPath( file(params.variants_sheet) )
                     }
 
 
+// // QC coverage summary channel
+// Channel.fromPath( file(params.variants_sheet) )
+//                     .splitCsv(header: true)
+//                     .map{row ->
+//                         def sample_ID = row."${params.variant_sample_header}"
+//                         def sample_vcf_annot = file("${params.variants_gatk_hc_annot_dir}/${sample_ID}.combined.txt")
+//                         return [ sample_ID, sample_vcf_annot ]
+//                     }
+//                     .into {
+//                         sample_vcf_annot;
+//                         sample_vcf_annot2
+//                     }
+
 
 
 
@@ -142,7 +158,7 @@ process msisensor {
     tag { sample_ID }
     module 'samtools/1.3'
     clusterOptions '-pe threaded 1-4 -j y'
-    publishDir "${params.output_dir}/MSI" , mode: 'move', overwrite: true, //"${params.output_dir}/${sample_ID}/MSI"
+    publishDir "${params.output_dir}/MSI" , //mode: 'move', overwrite: true, //"${params.output_dir}/${sample_ID}/MSI"
         saveAs: {filename ->
             if (filename == 'msisensor') "${sample_ID}.msisensor"
             else if (filename == 'msisensor_dis') "${sample_ID}.msisensor_dis"
@@ -179,7 +195,7 @@ process msisensor {
 process deconstructSigs_signatures {
     tag { sample_ID }
     errorStrategy 'ignore' // script fails if there are no variants
-    publishDir "${params.output_dir}/Genomic_Profiles" , mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/Genomic_Profiles" , //mode: 'move', overwrite: true,
         saveAs: {filename ->
             if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
             else if (filename == 'sample_signatures.pdf') "${sample_ID}_signatures.pdf"
@@ -205,7 +221,7 @@ process deconstructSigs_signatures {
 // DELLY2 SNV STEPS
 process delly2_deletions {
     tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-deletions", mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/SNV-Delly2-deletions", //mode: 'move', overwrite: true,
         saveAs: { filename -> "${sample_ID}_deletions.vcf" }
 
     input:
@@ -225,7 +241,7 @@ process delly2_deletions {
 
 process delly2_duplications {
     tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-duplications", mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/SNV-Delly2-duplications", //mode: 'move', overwrite: true,
         saveAs: { filename -> "${sample_ID}_duplications.vcf" }
 
     input:
@@ -245,7 +261,7 @@ process delly2_duplications {
 
 process delly2_inversions {
     tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-inversions", mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/SNV-Delly2-inversions", //mode: 'move', overwrite: true,
         saveAs: { filename -> "${sample_ID}_inversions.vcf" }
 
     input:
@@ -265,7 +281,7 @@ process delly2_inversions {
 
 process delly2_translocations {
     tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-translocations", mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/SNV-Delly2-translocations", //mode: 'move', overwrite: true,
         saveAs: { filename -> "${sample_ID}_translocations.vcf" }
 
     input:
@@ -285,7 +301,7 @@ process delly2_translocations {
 
 process delly2_insertions {
     tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-insertions", mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/SNV-Delly2-insertions", //mode: 'move', overwrite: true,
         saveAs: { filename -> "${sample_ID}_insertions.vcf" }
 
     input:
@@ -308,7 +324,7 @@ process delly2_insertions {
 process  gatk_coverage_custom {
     tag { sample_ID }
     module 'samtools/1.3'
-    publishDir "${params.output_dir}/Coverage-GATK-Custom" , mode: 'move', overwrite: true
+    publishDir "${params.output_dir}/Coverage-GATK-Custom" //, mode: 'move', overwrite: true
 
     input:
     file regions_bed from file(params.regions_bed) // name "regions.bed"
@@ -318,7 +334,7 @@ process  gatk_coverage_custom {
     file "${sample_ID}.sample_cumulative_coverage_counts"
     file "${sample_ID}.sample_cumulative_coverage_proportions"
     file "${sample_ID}.sample_interval_statistics"
-    file "${sample_ID}.sample_interval_summary"
+    file "${sample_ID}.sample_interval_summary" into sample_interval_summary
     file "${sample_ID}.sample_statistics"
     file "${sample_ID}.sample_summary"
 
@@ -349,7 +365,7 @@ process  gatk_coverage_custom {
 
 process vaf_distribution_plot {
     tag { sample_ID }
-    publishDir "${params.output_dir}/VAF-Dist-GATK-HC" , mode: 'move', overwrite: true
+    publishDir "${params.output_dir}/VAF-Dist-GATK-HC" //, mode: 'move', overwrite: true
 
     input:
     set val(sample_ID), file(sample_vcf_annot) from sample_vcf_annot
@@ -361,5 +377,18 @@ process vaf_distribution_plot {
     """
     $params.vaf_distribution_plot_script "${sample_ID}" "${sample_vcf_annot}"
     """
+
+}
+
+process summary_GATK_intervals {
+    executor "local"
+    input:
+    file '*.sample_interval_summary' from sample_interval_summary
+
+    script:
+    """
+    echo "*.sample_interval_summary"
+    """
+
 
 }
