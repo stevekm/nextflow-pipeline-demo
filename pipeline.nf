@@ -15,16 +15,14 @@ params.variants_gatk_hc_dir = "${params.input_dir}/VCF-GATK-HC"
 Channel.fromPath( file(params.pairs_sheet) ) // read the .csv file into a channel
                         .splitCsv(header: true) // split .csv with header
                         .map { row -> // map each row in the .csv to files in the bam dir
-                            sample_tumor_ID = row."${params.tumor_header}"
-                            sample_normal_ID = row."${params.normal_header}"
-
-                            return [
-                            "${sample_tumor_ID}_${sample_normal_ID}", // sample comparison ID
-                            "${sample_tumor_ID}",
-                            file("${params.bam_gatk_ra_rc_dir}/${sample_tumor_ID}.dd.ra.rc.bam"),
-                            "${sample_normal_ID}",
-                            file("${params.bam_gatk_ra_rc_dir}/${sample_normal_ID}.dd.ra.rc.bam"),
-                            ]
+                            def sample_tumor_ID = row."${params.tumor_header}"
+                            def sample_tumor_bam = file("${params.bam_gatk_ra_rc_dir}/${sample_tumor_ID}.dd.ra.rc.bam")
+                            def sample_tumor_bai = file("${params.bam_gatk_ra_rc_dir}/${sample_tumor_ID}.dd.ra.rc.bam.bai")
+                            def sample_normal_ID = row."${params.normal_header}"
+                            def sample_normal_bam = file("${params.bam_gatk_ra_rc_dir}/${sample_normal_ID}.dd.ra.rc.bam")
+                            def sample_normal_bai = file("${params.bam_gatk_ra_rc_dir}/${sample_normal_ID}.dd.ra.rc.bam.bai")
+                            def sample_ID = "${sample_tumor_ID}_${sample_normal_ID}" // sample comparison ID
+                            return [ sample_ID, sample_tumor_ID, sample_tumor_bam, sample_tumor_bai, sample_normal_ID, sample_normal_bam, sample_normal_bai ]
                         }
                         .into {sample_pairs_demo;
                             sample_pairs_msi}
@@ -35,35 +33,31 @@ Channel.fromPath( file(params.pairs_sheet) ) // read the .csv file into a channe
 Channel.fromPath( file(params.variants_sheet) )
                     .splitCsv(header: true)
                     .map{row ->
-                        sample_ID = row."${params.variant_sample_header}"
-
-                        return [
-                        sample_ID,
-                        file("${params.variants_gatk_hc_dir}/${sample_ID}.vcf")
-                        ]
+                        def sample_ID = row."${params.variant_sample_header}"
+                        def sample_vcf = file("${params.variants_gatk_hc_dir}/${sample_ID}.vcf")
+                        return [ sample_ID, sample_vcf ]
                     }
-                    .into { sample_variants_deconstructSigs }
+                    .set { sample_variants_deconstructSigs }
 
 Channel.fromPath( file(params.variants_sheet) )
                     .splitCsv(header: true)
                     .map{row ->
-                        sample_ID = row."${params.variant_sample_header}"
-                        // println [sample_ID, row].join('\t')
+                        def sample_ID = row."${params.variant_sample_header}"
+                        def sample_bam = file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam")
+                        def sample_bai = file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam.bai")
+
                         println "-------------"
                         println "--- start csv row mapping ----"
-                        println "row: " + row
-                        println 'sample_ID: ' + sample_ID
-                        println "${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam"
-                        println file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam")
+                        println "row: ${row}"
+                        println "sample_ID: ${sample_ID}"
+                        println "sample_bam: ${sample_bam}"
+                        println "sample_bai: ${sample_bai}"
                         println "--- end csv row mapping ----"
                         println "-------------"
 
-                        return [
-                        sample_ID,
-                        file("${params.bam_gatk_ra_rc_dir}/${sample_ID}.dd.ra.rc.bam")                        ]
+                        return [ sample_ID, sample_bam, sample_bai ]
                     }
                     .into {
-                        sample_bam_delly2;
                         sample_bam_delly2_deletions;
                         sample_bam_delly2_duplications;
                         sample_bam_delly2_inversions;
@@ -80,27 +74,17 @@ process match_samples {
     tag { sample_ID }
     executor "local"
     input:
-    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), val(sample_normal_ID), file(sample_normal_bam) from sample_pairs_demo
+    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_demo
 
     exec:
-    println "sample: ${sample_ID}, tumor: ${sample_tumor_ID}, sample_tumor_bam: ${sample_tumor_bam}"
+    println "sample_ID: ${sample_ID}, sample_tumor_ID: ${sample_tumor_ID}, sample_tumor_bam: ${sample_tumor_bam}, sample_tumor_bai: ${sample_tumor_bai}, sample_normal_ID: ${sample_normal_ID}, sample_normal_bam: ${sample_normal_bam}, sample_normal_bai: ${sample_normal_bai}"
 
-}
-
-process check_samples_mapping {
-    tag { sample_ID }
-    executor "local"
-    input:
-    set val(sample_ID), file(bam_gatk_ra_rc) from sample_bam_demo
-
-    exec:
-    println "sample: ${sample_ID}, bam: ${bam_gatk_ra_rc}"
 }
 
 
 process msisensor {
     tag { sample_ID }
-    clusterOptions '-pe threaded 1-8 -j y'
+    clusterOptions '-pe threaded 1-4 -j y'
     publishDir "${params.output_dir}/MSI" , mode: 'move', overwrite: true, //"${params.output_dir}/${sample_ID}/MSI"
         saveAs: {filename ->
             if (filename == 'msisensor') "${sample_ID}.msisensor"
@@ -111,9 +95,9 @@ process msisensor {
         }
 
     input:
-    file microsatellites from file(params.microsatellites)
-    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), val(sample_normal_ID), file(sample_normal_bam) from sample_pairs_msi
-    file regions_bed name "regions.bed" from file(params.regions_bed)
+    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_msi
+    file regions_bed from file(params.regions_bed) // name "regions.bed"
+    // file microsatellites from file(params.microsatellites)
 
     output:
     file 'msisensor'
@@ -121,15 +105,28 @@ process msisensor {
     file 'msisensor_germline'
     file 'msisensor_somatic'
 
+    // $params.samtools_bin index ${sample_normal_bam}
+    // $params.samtools_bin index ${sample_tumor_bam}
+    // rm -f ${sample_normal_bam}.bai
+    // rm -f ${sample_tumor_bam}.bai
     script:
     """
-    $params.samtools_bin index ${sample_normal_bam}
-    $params.samtools_bin index ${sample_tumor_bam}
-    $params.msisensor_bin msi -d $microsatellites -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
-    rm -f ${sample_normal_bam}.bai
-    rm -f ${sample_tumor_bam}.bai
+    echo "USER:\${USER}\tJOB_ID:\${JOB_ID}\tJOB_NAME:\${JOB_NAME}\tHOSTNAME:\${HOSTNAME}\tTASK_ID:\${TASK_ID}"
+    $params.msisensor_bin msi -d ${params.microsatellites} -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
     """
 }
+
+
+process check_samples_mapping {
+    tag { sample_ID }
+    executor "local"
+    input:
+    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_demo
+
+    exec:
+    println "sample_ID: ${sample_ID}, sample_bam: ${sample_bam}, sample_bai: ${sample_bai}"
+}
+
 
 process deconstructSigs_signatures {
     tag { sample_ID }
@@ -155,47 +152,6 @@ process deconstructSigs_signatures {
     """
 }
 
-// process delly2 {
-//     tag { sample_ID }
-//     publishDir "${params.output_dir}/SNV-Delly2", mode: 'move', overwrite: true,
-//         saveAs: {filename ->
-//             if (filename == 'deletions.vcf') "${sample_ID}_deletions.vcf"
-//             else if (filename == 'duplications.vcf') "${sample_ID}_duplications.vcf"
-//             else if (filename == 'inversions.vcf') "${sample_ID}_inversions.vcf"
-//             else if (filename == 'translocations.vcf') "${sample_ID}_translocations.vcf"
-//             else if (filename == 'insertions.vcf') "${sample_ID}_insertions.vcf"
-//             else null
-//         }
-//
-//     input:
-//     set val(sample_ID), file(bam_gatk_ra_rc), file(bai_gatk_ra_rc) from sample_bam_delly2
-//
-//     output:
-//     file "deletions.vcf"
-//     file "duplications.vcf"
-//     file "inversions.vcf"
-//     file "translocations.vcf"
-//     file "insertions.vcf"
-//
-//     script:
-//     """
-//     $params.delly2_bin call -t DEL -g ${params.hg19_fa} -o deletions.bcf "${bam_gatk_ra_rc}"
-//     $params.delly2_bcftools_bin view deletions.bcf > deletions.vcf
-//
-//     $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${bam_gatk_ra_rc}"
-//     $params.delly2_bcftools_bin view duplications.bcf > duplications.vcf
-//
-//     $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${bam_gatk_ra_rc}"
-//     $params.delly2_bcftools_bin view inversions.bcf > inversions.vcf
-//
-//     $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${bam_gatk_ra_rc}"
-//     $params.delly2_bcftools_bin view translocations.bcf > translocations.vcf
-//
-//     $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${bam_gatk_ra_rc}"
-//     $params.delly2_bcftools_bin view insertions.bcf > insertions.vcf
-//     """
-// }
-
 
 process delly2_deletions {
     tag { sample_ID }
@@ -203,17 +159,17 @@ process delly2_deletions {
         saveAs: { filename -> "${sample_ID}_deletions.vcf" }
 
     input:
-    set val(sample_ID), file(bam_gatk_ra_rc) from sample_bam_delly2_deletions
+    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_delly2_deletions
 
     output:
     file "deletions.vcf"
 
+    // $params.samtools_bin index ${bam_gatk_ra_rc}
+    // rm -f ${bam_gatk_ra_rc}.bai
     script:
     """
-    $params.samtools_bin index ${bam_gatk_ra_rc}
-    $params.delly2_bin call -t DEL -g ${params.hg19_fa} -o deletions.bcf "${bam_gatk_ra_rc}"
+    $params.delly2_bin call -t DEL -g ${params.hg19_fa} -o deletions.bcf "${sample_bam}"
     $params.delly2_bcftools_bin view deletions.bcf > deletions.vcf
-    rm -f ${bam_gatk_ra_rc}.bai
     """
 }
 
@@ -223,17 +179,15 @@ process delly2_duplications {
         saveAs: { filename -> "${sample_ID}_duplications.vcf" }
 
     input:
-    set val(sample_ID), file(bam_gatk_ra_rc) from sample_bam_delly2_duplications
+    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_delly2_duplications
 
     output:
     file "duplications.vcf"
 
     script:
     """
-    $params.samtools_bin index ${bam_gatk_ra_rc}
-    $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${bam_gatk_ra_rc}"
+    $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${sample_bam}"
     $params.delly2_bcftools_bin view duplications.bcf > duplications.vcf
-    rm -f ${bam_gatk_ra_rc}.bai
     """
 }
 
@@ -243,17 +197,15 @@ process delly2_inversions {
         saveAs: { filename -> "${sample_ID}_inversions.vcf" }
 
     input:
-    set val(sample_ID), file(bam_gatk_ra_rc) from sample_bam_delly2_inversions
+    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_delly2_inversions
 
     output:
     file "inversions.vcf"
 
     script:
     """
-    $params.samtools_bin index ${bam_gatk_ra_rc}
-    $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${bam_gatk_ra_rc}"
+    $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${sample_bam}"
     $params.delly2_bcftools_bin view inversions.bcf > inversions.vcf
-    rm -f ${bam_gatk_ra_rc}.bai
     """
 }
 
@@ -263,17 +215,15 @@ process delly2_translocations {
         saveAs: { filename -> "${sample_ID}_translocations.vcf" }
 
     input:
-    set val(sample_ID), file(bam_gatk_ra_rc) from sample_bam_delly2_translocations
+    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_delly2_translocations
 
     output:
     file "translocations.vcf"
 
     script:
     """
-    $params.samtools_bin index ${bam_gatk_ra_rc}
-    $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${bam_gatk_ra_rc}"
+    $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${sample_bam}"
     $params.delly2_bcftools_bin view translocations.bcf > translocations.vcf
-    rm -f ${bam_gatk_ra_rc}.bai
     """
 }
 
@@ -283,17 +233,15 @@ process delly2_insertions {
         saveAs: { filename -> "${sample_ID}_insertions.vcf" }
 
     input:
-    set val(sample_ID), file(bam_gatk_ra_rc) from sample_bam_delly2_insertions
+    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_delly2_insertions
 
     output:
     file "insertions.vcf"
 
     script:
     """
-    $params.samtools_bin index ${bam_gatk_ra_rc}
-    $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${bam_gatk_ra_rc}"
+    $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${sample_bam}"
     $params.delly2_bcftools_bin view insertions.bcf > insertions.vcf
-    rm -f ${bam_gatk_ra_rc}.bai
     """
 }
 
@@ -303,8 +251,8 @@ process  gatk_coverage_custom {
     publishDir "${params.output_dir}/Coverage-GATK-Custom" , mode: 'move', overwrite: true
 
     input:
-    file regions_bed name "regions.bed" from file(params.regions_bed)
-    set val(sample_ID), file(bam_gatk_ra_rc) from sample_bam_gatk_coverage_custom
+    file regions_bed from file(params.regions_bed) // name "regions.bed"
+    set val(sample_ID), file(sample_bam), file(sample_bai) from sample_bam_gatk_coverage_custom
 
     output:
     file "${sample_ID}.sample_cumulative_coverage_counts"
@@ -316,7 +264,6 @@ process  gatk_coverage_custom {
 
     script:
     """
-    $params.samtools_bin index ${bam_gatk_ra_rc}
     java -Xms16G -Xmx16G -jar ${params.gatk_bin} -T DepthOfCoverage \
     --logging_level ERROR \
     --downsampling_type NONE \
@@ -330,9 +277,8 @@ process  gatk_coverage_custom {
     --nBins 999 \
     --start 1 \
     --stop 1000 \
-    --input_file ${bam_gatk_ra_rc} \
+    --input_file ${sample_bam} \
     --outputFormat csv \
     --out ${sample_ID}
-    rm -f ${bam_gatk_ra_rc}.bai
     """
 }

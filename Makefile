@@ -3,6 +3,9 @@ none:
 install:
 	curl -fsSL get.nextflow.io | bash
 
+run:
+	./nextflow run pipeline.nf
+
 clean-logs:
 	rm -f .nextflow.log.*
 
