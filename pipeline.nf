@@ -154,6 +154,106 @@ process check_samples_mapping {
 }
 
 
+// NEW PIPELINE STEPS
+process deconstructSigs_signatures {
+    tag { sample_ID }
+    executor "local"
+    validExitStatus 0,11 // allow '11' failure triggered by no variants
+    publishDir "${params.output_dir}/Genomic_Signatures", overwrite: true, //mode: 'move', overwrite: true,
+        saveAs: {filename ->
+            if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
+            else if (filename == 'sample_signatures.pdf') "${sample_ID}_signatures.pdf"
+            else if (filename == 'sample_signatures_pie.pdf') "${sample_ID}_signatures_pie.pdf"
+            else filename
+        }
+    input:
+    set val(sample_ID), file(sample_vcf) from sample_variants_deconstructSigs
+
+    output:
+    file "${sample_ID}_signatures.Rds"
+    file "${sample_ID}_signatures.pdf" into signatures_plots
+    file "${sample_ID}_signatures_pie.pdf" into signatures_pie_plots
+
+    script:
+    """
+    pwd
+    $params.deconstructSigs_make_signatures_script "${sample_ID}" "$sample_vcf"
+    """
+}
+
+
+process vaf_distribution_plot {
+    tag { sample_ID }
+    executor "local"
+    publishDir "${params.output_dir}/VAF-Distribution", overwrite: true //, mode: 'move', overwrite: true
+
+    input:
+    set val(sample_ID), file(sample_vcf_annot) from sample_vcf_annot
+
+    output:
+    file "${sample_ID}_vaf_dist.pdf" into vaf_distribution_plots
+
+    script:
+    """
+    $params.vaf_distribution_plot_script "${sample_ID}" "${sample_vcf_annot}"
+    """
+
+}
+
+process merge_signatures_plots {
+    echo true
+    executor "local"
+    publishDir "${params.output_dir}/Genomic_Signatures_Summary", overwrite: true
+
+    input:
+    file '*' from signatures_plots.toList()
+
+    output:
+    file "genomic_signatures.pdf"
+
+    script:
+    """
+    gs -dBATCH -dNOPAUSE -q -dAutoRotatePages=/None -sDEVICE=pdfwrite -sOutputFile=genomic_signatures.pdf *
+    """
+}
+
+process merge_signatures_pie_plots {
+    echo true
+    executor "local"
+    publishDir "${params.output_dir}/Genomic_Signatures_Summary", overwrite: true
+
+    input:
+    file '*' from signatures_pie_plots.toList()
+
+    output:
+    file "genomic_signatures_pie.pdf"
+
+    script:
+    """
+    gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=genomic_signatures_pie.pdf *
+    """
+}
+
+
+process merge_VAF_plots {
+    echo true
+    executor "local"
+    publishDir "${params.output_dir}/VAF-Distribution_Summary", overwrite: true
+
+    input:
+    file '*' from vaf_distribution_plots.toList()
+
+    output:
+    file "vaf_distributions.pdf"
+
+    script:
+    """
+    gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=vaf_distributions.pdf *
+    """
+}
+
+
+
 // process msisensor {
 //     tag { sample_ID }
 //     module 'samtools/1.3'
@@ -189,35 +289,9 @@ process check_samples_mapping {
 //     rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai"
 //     """
 // }
-//
 
 
-process deconstructSigs_signatures {
-    tag { sample_ID }
-    errorStrategy 'ignore' // script fails if there are no variants
-    publishDir "${params.output_dir}/Genomic_Profiles" , //mode: 'move', overwrite: true,
-        saveAs: {filename ->
-            if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
-            else if (filename == 'sample_signatures.pdf') "${sample_ID}_signatures.pdf"
-            else if (filename == 'sample_signatures_pie.pdf') "${sample_ID}_signatures_pie.pdf"
-            else null
-        }
-    input:
-    set val(sample_ID), file(sample_vcf) from sample_variants_deconstructSigs
-
-    output:
-    file 'sample_signatures.Rds'
-    file 'sample_signatures.pdf'
-    file 'sample_signatures_pie.pdf'
-
-    script:
-    """
-    $params.deconstructSigs_make_signatures_script "$sample_vcf"
-    """
-}
-
-
-//
+// OLD PIPELINE STEPS
 // // DELLY2 SNV STEPS
 // process delly2_deletions {
 //     tag { sample_ID }
@@ -320,65 +394,49 @@ process deconstructSigs_signatures {
 // }
 //
 
+//
+// process  gatk_coverage_custom {
+//     tag { sample_ID }
+//     module 'samtools/1.3'
+//     publishDir "${params.output_dir}/Coverage-GATK-Custom" //, mode: 'move', overwrite: true
+//
+//     input:
+//     file regions_bed from file(params.regions_bed) // name "regions.bed"
+//     set val(sample_ID), file(sample_bam) from sample_bam_gatk_coverage_custom
+//
+//     output:
+//     file "${sample_ID}.sample_cumulative_coverage_counts"
+//     file "${sample_ID}.sample_cumulative_coverage_proportions"
+//     file "${sample_ID}.sample_interval_statistics"
+//     file "${sample_ID}.sample_interval_summary" into sample_interval_summary
+//     file "${sample_ID}.sample_statistics"
+//     file "${sample_ID}.sample_summary"
+//
+//     script:
+//     """
+//     $params.samtools_bin index ${sample_bam}
+//
+//     java -Xms16G -Xmx16G -jar ${params.gatk_bin} -T DepthOfCoverage \
+//     --logging_level ERROR \
+//     --downsampling_type NONE \
+//     --read_filter BadCigar \
+//     --reference_sequence ${params.hg19_fa} \
+//     --omitDepthOutputAtEachBase \
+//     -ct 10 -ct 50 -ct 100 -ct 200 -ct 300 -ct 400 -ct 500 \
+//     --intervals ${regions_bed} \
+//     --minBaseQuality 20 \
+//     --minMappingQuality 20 \
+//     --nBins 999 \
+//     --start 1 \
+//     --stop 1000 \
+//     --input_file ${sample_bam} \
+//     --outputFormat csv \
+//     --out ${sample_ID}
+//
+//     rm -f ${sample_bam}.bai
+//     """
+// }
 
-process  gatk_coverage_custom {
-    tag { sample_ID }
-    module 'samtools/1.3'
-    publishDir "${params.output_dir}/Coverage-GATK-Custom" //, mode: 'move', overwrite: true
-
-    input:
-    file regions_bed from file(params.regions_bed) // name "regions.bed"
-    set val(sample_ID), file(sample_bam) from sample_bam_gatk_coverage_custom
-
-    output:
-    file "${sample_ID}.sample_cumulative_coverage_counts"
-    file "${sample_ID}.sample_cumulative_coverage_proportions"
-    file "${sample_ID}.sample_interval_statistics"
-    file "${sample_ID}.sample_interval_summary" into sample_interval_summary
-    file "${sample_ID}.sample_statistics"
-    file "${sample_ID}.sample_summary"
-
-    script:
-    """
-    $params.samtools_bin index ${sample_bam}
-
-    java -Xms16G -Xmx16G -jar ${params.gatk_bin} -T DepthOfCoverage \
-    --logging_level ERROR \
-    --downsampling_type NONE \
-    --read_filter BadCigar \
-    --reference_sequence ${params.hg19_fa} \
-    --omitDepthOutputAtEachBase \
-    -ct 10 -ct 50 -ct 100 -ct 200 -ct 300 -ct 400 -ct 500 \
-    --intervals ${regions_bed} \
-    --minBaseQuality 20 \
-    --minMappingQuality 20 \
-    --nBins 999 \
-    --start 1 \
-    --stop 1000 \
-    --input_file ${sample_bam} \
-    --outputFormat csv \
-    --out ${sample_ID}
-
-    rm -f ${sample_bam}.bai
-    """
-}
-
-process vaf_distribution_plot {
-    tag { sample_ID }
-    publishDir "${params.output_dir}/VAF-Dist-GATK-HC" //, mode: 'move', overwrite: true
-
-    input:
-    set val(sample_ID), file(sample_vcf_annot) from sample_vcf_annot
-
-    output:
-    file "${sample_ID}_vaf_dist.pdf"
-
-    script:
-    """
-    $params.vaf_distribution_plot_script "${sample_ID}" "${sample_vcf_annot}"
-    """
-
-}
 
 // process summary_GATK_intervals {
 //     executor "local"

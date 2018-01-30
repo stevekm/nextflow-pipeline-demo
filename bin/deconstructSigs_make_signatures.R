@@ -1,11 +1,15 @@
 #!/usr/bin/env Rscript
 args <- commandArgs(T)
 
-sampleID <- "sample" # sampleID <- args[1]
-
-vcf_file <- args[1]
+sampleID <- args[1]
+vcf_file <- args[2]
 # vcf_file <- "pipeline_output/VCF-GATK-HC/SC-SERACARE.vcf"
 
+
+message(sprintf("vcf_file: %s", vcf_file))
+message(sprintf("sampleID: %s", sampleID))
+
+save.image()
 
 library("BSgenome.Hsapiens.UCSC.hg19")
 library("deconstructSigs")
@@ -24,7 +28,7 @@ variants <- variants[which(as.character(variants[["CHROM"]]) %in% seqnames(BSgen
 # need at least 55 variants per sample
 if (nrow(variants) < 55) {
     message(sprintf('There are fewer than 55 variants for sample %s', sampleID))
-    quit(status = 1)
+    quit(status = 11)
 }
 
 # convert to signatures format
