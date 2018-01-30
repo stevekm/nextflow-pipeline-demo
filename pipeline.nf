@@ -120,7 +120,8 @@ Channel.fromPath( file(params.variants_sheet) )
 //                     }
 
 
-
+// files to send in email
+email_files = Channel.create()
 
 
 //
@@ -201,7 +202,6 @@ process vaf_distribution_plot {
 }
 
 process merge_signatures_plots {
-    echo true
     executor "local"
     publishDir "${params.output_dir}/Genomic_Signatures_Summary", overwrite: true
 
@@ -209,7 +209,7 @@ process merge_signatures_plots {
     file '*' from signatures_plots.toList()
 
     output:
-    file "genomic_signatures.pdf"
+    file "genomic_signatures.pdf" into email_signatures_plots
 
     script:
     """
@@ -218,7 +218,6 @@ process merge_signatures_plots {
 }
 
 process merge_signatures_pie_plots {
-    echo true
     executor "local"
     publishDir "${params.output_dir}/Genomic_Signatures_Summary", overwrite: true
 
@@ -226,7 +225,7 @@ process merge_signatures_pie_plots {
     file '*' from signatures_pie_plots.toList()
 
     output:
-    file "genomic_signatures_pie.pdf"
+    file "genomic_signatures_pie.pdf" into email_signatures_pie_plots
 
     script:
     """
@@ -236,7 +235,6 @@ process merge_signatures_pie_plots {
 
 
 process merge_VAF_plots {
-    echo true
     executor "local"
     publishDir "${params.output_dir}/VAF-Distribution_Summary", overwrite: true
 
@@ -244,7 +242,7 @@ process merge_VAF_plots {
     file '*' from vaf_distribution_plots.toList()
 
     output:
-    file "vaf_distributions.pdf"
+    file "vaf_distributions.pdf" into email_VAF_plots
 
     script:
     """
@@ -252,7 +250,21 @@ process merge_VAF_plots {
     """
 }
 
+process email {
+    echo true
+    executor "local"
 
+    input:
+    file '*' from email_files.mix(email_VAF_plots,
+                                    email_signatures_pie_plots,
+                                    email_signatures_plots
+                                    ).toList()
+
+    script:
+    """
+    echo *
+    """
+}
 
 // process msisensor {
 //     tag { sample_ID }
