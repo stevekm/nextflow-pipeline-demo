@@ -24,5 +24,5 @@ ln -fs /path/to/sns_output sns-dir
 Run (recommended to run in `screen`)
 
 ```bash
-./nextflow run pipeline.nf
+make run
 ```
