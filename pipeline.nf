@@ -34,6 +34,9 @@ Channel.fromPath( file(params.pairs_sheet) ) // read the .csv file into a channe
                                     // sample_normal_bai
                                     ]
                         }
+                        .filter{ sample_ID, sample_tumor_ID, sample_tumor_bam, sample_normal_ID, sample_normal_bam ->
+                            sample_tumor_ID != params.pairs_sheet_nomatch_value && sample_normal_ID != params.pairs_sheet_nomatch_value
+                        }
                         .into {sample_pairs_demo;
                             sample_pairs_msi}
 
@@ -118,7 +121,7 @@ email_files = Channel.create()
 // DEBUGGING STEPS
 process match_samples {
     tag { sample_ID }
-    // executor "local"
+    executor "local"
     input:
     set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), val(sample_normal_ID), file(sample_normal_bam) from sample_pairs_demo
     // set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_demo
@@ -132,7 +135,7 @@ process match_samples {
 
 process check_samples_mapping {
     tag { sample_ID }
-    // executor "local"
+    executor "local"
     input:
     set val(sample_ID), file(sample_bam) from sample_bam_demo
 
@@ -188,7 +191,7 @@ process vaf_distribution_plot {
 }
 
 process merge_signatures_plots {
-    // executor "local"
+    executor "local"
     publishDir "${params.output_dir}/Genomic_Signatures_Summary", overwrite: true
 
     input:
@@ -204,7 +207,7 @@ process merge_signatures_plots {
 }
 
 process merge_signatures_pie_plots {
-    // executor "local"
+    executor "local"
     publishDir "${params.output_dir}/Genomic_Signatures_Summary", overwrite: true
 
     input:
@@ -221,7 +224,7 @@ process merge_signatures_pie_plots {
 
 
 process merge_VAF_plots {
-    // executor "local"
+    executor "local"
     publishDir "${params.output_dir}/VAF-Distribution_Summary", overwrite: true
 
     input:
