@@ -22,9 +22,9 @@ clean-all: clean clean-output
 
 
 # other commands
-docker:
+build:
 	docker build -t stevekm/nextflow-demo .
 
 # --privileged
-docker-test:
+build-test:
 	docker run --rm -ti stevekm/nextflow-demo
