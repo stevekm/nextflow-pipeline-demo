@@ -449,7 +449,6 @@ process summary_GATK_intervals {
 
     input:
     file "*" from sample_interval_summary.toList()
-    file "tools.R" from params.r_util_script
 
     script:
     """
