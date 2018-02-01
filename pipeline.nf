@@ -453,7 +453,7 @@ process summary_GATK_intervals {
     script:
     """
     ln -s "${r_util_script}"
-    $params.gatk_avg_coverages_script *
+    $params.gatk_avg_coverages_script *.sample_interval_summary
     """
 
 
