@@ -7,6 +7,9 @@ install:
 run:
 	./nextflow run pipeline.nf
 
+resume:
+	./nextflow run pipeline.nf -resume
+
 clean-logs:
 	rm -f .nextflow.log.*
 
