@@ -6,7 +6,7 @@
 
 
 # ~~~~~ FUNCTIONS ~~~~~ # 
-source("snsxt_tools.R")
+source("tools.R")
 
 read.sample_interval_summary.file <- function(file){
     # read the GATK DepthOfCoverage sample_interval_summary file

@@ -15,6 +15,11 @@ params.variants_gatk_hc_annot_dir = "${params.input_dir}/VCF-GATK-HC-annot"
 params.qc_coverage_dir = "${params.input_dir}/QC-coverage"
 // sns-dir/QC-coverage/*.sample_interval_summary
 
+// get full path to the script
+// import java.io.File;
+r_util_script = new File(params.r_util_script).getCanonicalPath()
+
+
 //
 // read sample pairs from samplesheet
 //
@@ -440,13 +445,15 @@ process  gatk_coverage_custom {
 
 
 process summary_GATK_intervals {
-    // executor "local"
+    executor "local"
 
     input:
     file "*" from sample_interval_summary.toList()
+    file "tools.R" from params.r_util_script
 
     script:
     """
+    ln -s "${r_util_script}"
     $params.gatk_avg_coverages_script *
     """
 
