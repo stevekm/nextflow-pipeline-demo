@@ -10,10 +10,12 @@ tryCatch({
   source("tools.R")
 },
 error=function(cond) {
+    print("could not load tools.R from local directory, attempting to load from PATH instead...")
   path <- Sys.getenv('PATH')
   bin_dir <- unlist(strsplit(x = path, split = ':'))[1]
   source(file.path(bin_dir, "tools.R"))
 })
+tsprintf("Starting GATK average coverages script")
 
 read.sample_interval_summary.file <- function(file){
     # read the GATK DepthOfCoverage sample_interval_summary file
@@ -62,9 +64,11 @@ build_all_coverages_df <- function(coverage_files){
 # get script args
 args <- commandArgs(trailingOnly = TRUE)  
 
+tsprintf("interval summary files passed:")
 print(args)
 coverage_files <- args
 
+tsprintf("current directory is: %s", getwd())
 
 # ~~~~~~~ IMPORT AVERAGE COVERAGE PER REGION PER SAMPLE ~~~~~~~ #
 all_coverages_df <- build_all_coverages_df(coverage_files)
@@ -99,5 +103,5 @@ tsprintf("Number of regions found: %s", nrow(zero_regions))
 zero_BED_file <- "regions_with_coverage_0.bed"
 try_to_save_BED(df = zero_regions, output_file = zero_BED_file)
 
-
+print("done...")
 save.image()

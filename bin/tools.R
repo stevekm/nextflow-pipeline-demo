@@ -72,3 +72,6 @@ try_to_save_BED <- function(df, output_file) {
         file.create(output_file)
     }
 }
+
+# ~~~~~ RUN ~~~~~ # 
+tsprintf("loaded tools.R...")
