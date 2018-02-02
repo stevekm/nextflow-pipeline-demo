@@ -154,7 +154,7 @@ process deconstructSigs_signatures {
     tag { sample_ID }
     // executor "local"
     validExitStatus 0,11 // allow '11' failure triggered by no variants
-    publishDir "${params.output_dir}/Genomic_Signatures", overwrite: true, //mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/Genomic_Signatures", mode: 'copy', overwrite: true,
         saveAs: {filename ->
             if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
             else if (filename == 'sample_signatures.pdf') "${sample_ID}_signatures.pdf"
@@ -180,7 +180,7 @@ process deconstructSigs_signatures {
 process vaf_distribution_plot {
     tag { sample_ID }
     // executor "local"
-    publishDir "${params.output_dir}/VAF-Distribution", overwrite: true //, mode: 'move', overwrite: true
+    publishDir "${params.output_dir}/VAF-Distribution", mode: 'copy', overwrite: true
 
     input:
     set val(sample_ID), file(sample_vcf_annot) from sample_vcf_annot
@@ -195,25 +195,9 @@ process vaf_distribution_plot {
 
 }
 
-process merge_signatures_plots {
-    executor "local"
-    publishDir "${params.output_dir}/Genomic_Signatures_Summary", overwrite: true
-
-    input:
-    file '*' from signatures_plots.toList()
-
-    output:
-    file "genomic_signatures.pdf" into email_signatures_plots
-
-    script:
-    """
-    gs -dBATCH -dNOPAUSE -q -dAutoRotatePages=/None -sDEVICE=pdfwrite -sOutputFile=genomic_signatures.pdf *
-    """
-}
-
 process merge_signatures_pie_plots {
     executor "local"
-    publishDir "${params.output_dir}/Genomic_Signatures_Summary", overwrite: true
+    publishDir "${params.output_dir}/Genomic_Signatures_Summary", mode: 'copy', overwrite: true
 
     input:
     file '*' from signatures_pie_plots.toList()
@@ -228,43 +212,12 @@ process merge_signatures_pie_plots {
 }
 
 
-process merge_VAF_plots {
-    executor "local"
-    publishDir "${params.output_dir}/VAF-Distribution_Summary", overwrite: true
-
-    input:
-    file '*' from vaf_distribution_plots.toList()
-
-    output:
-    file "vaf_distributions.pdf" into email_VAF_plots
-
-    script:
-    """
-    gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=vaf_distributions.pdf *
-    """
-}
-
-process email {
-    echo true
-    executor "local"
-
-    input:
-    file '*' from email_files.mix(email_VAF_plots,
-                                    email_signatures_pie_plots,
-                                    email_signatures_plots
-                                    ).toList()
-
-    script:
-    """
-    echo *
-    """
-}
 
 process msisensor {
     tag { sample_ID }
     module 'samtools/1.3'
     clusterOptions '-pe threaded 1-4 -j y'
-    publishDir "${params.output_dir}/MSI" , //mode: 'move', overwrite: true, //"${params.output_dir}/${sample_ID}/MSI"
+    publishDir "${params.output_dir}/MSI", mode: 'copy', overwrite: true,
         saveAs: {filename ->
             if (filename == 'msisensor') "${sample_ID}.msisensor"
             else if (filename == 'msisensor_dis') "${sample_ID}.msisensor_dis"
@@ -301,7 +254,7 @@ process msisensor {
 // DELLY2 SNV STEPS
 process delly2_deletions {
     tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-deletions", //mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/SNV-Delly2-deletions", mode: 'copy', overwrite: true,
         saveAs: { filename -> "${sample_ID}_deletions.vcf" }
 
     input:
@@ -321,7 +274,7 @@ process delly2_deletions {
 
 process delly2_duplications {
     tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-duplications", //mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/SNV-Delly2-duplications", mode: 'copy', overwrite: true,
         saveAs: { filename -> "${sample_ID}_duplications.vcf" }
 
     input:
@@ -341,7 +294,7 @@ process delly2_duplications {
 
 process delly2_inversions {
     tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-inversions", //mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/SNV-Delly2-inversions", mode: 'copy', overwrite: true,
         saveAs: { filename -> "${sample_ID}_inversions.vcf" }
 
     input:
@@ -361,7 +314,7 @@ process delly2_inversions {
 
 process delly2_translocations {
     tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-translocations", //mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/SNV-Delly2-translocations", mode: 'copy', overwrite: true,
         saveAs: { filename -> "${sample_ID}_translocations.vcf" }
 
     input:
@@ -381,7 +334,7 @@ process delly2_translocations {
 
 process delly2_insertions {
     tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-insertions", //mode: 'move', overwrite: true,
+    publishDir "${params.output_dir}/SNV-Delly2-insertions", mode: 'copy', overwrite: true,
         saveAs: { filename -> "${sample_ID}_insertions.vcf" }
 
     input:
@@ -404,7 +357,7 @@ process delly2_insertions {
 process  gatk_coverage_custom {
     tag { sample_ID }
     module 'samtools/1.3'
-    publishDir "${params.output_dir}/Coverage-GATK-Custom" //, mode: 'move', overwrite: true
+    publishDir "${params.output_dir}/Coverage-GATK-Custom", mode: 'copy', overwrite: true
 
     input:
     file regions_bed from file(params.regions_bed) // name "regions.bed"
@@ -444,17 +397,80 @@ process  gatk_coverage_custom {
 }
 
 
+
+// CUSTOM PLOTTING & SCRIPT STEPS
+
+
 process summary_GATK_intervals {
+    echo true
     executor "local"
+    publishDir "${params.output_dir}/Coverage-GATK-Interval-Summary", mode: 'copy', overwrite: true
 
     input:
     file "*" from sample_interval_summary.toList()
 
+    output:
+    file "average_coverage_per_sample.tsv"
+    file "average_coverage_per_region.tsv"
+    file "regions_coverage_below_50.bed"
+    file "regions_with_coverage_0.bed"
+
     script:
     """
-    ln -s "${r_util_script}"
-    $params.gatk_avg_coverages_script *.sample_interval_summary
+    set -x
+    echo "running summary_GATK_intervals task..."
+    echo "pwd is: \$(pwd)"
+    $params.gatk_avg_coverages_script *.sample_interval_summary && echo "done script on process: \$\$, exit status: \$?" && exit 0
     """
-
-
 }
+
+
+process merge_VAF_plots {
+    executor "local"
+    publishDir "${params.output_dir}/VAF-Distribution_Summary", mode: 'copy', overwrite: true
+
+    input:
+    file '*' from vaf_distribution_plots.toList()
+
+    output:
+    file "vaf_distributions.pdf" into email_VAF_plots
+
+    script:
+    """
+    gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=vaf_distributions.pdf *
+    """
+}
+
+process merge_signatures_plots {
+    executor "local"
+    publishDir "${params.output_dir}/Genomic_Signatures_Summary", mode: 'copy', overwrite: true
+
+    input:
+    file '*' from signatures_plots.toList()
+
+    output:
+    file "genomic_signatures.pdf" into email_signatures_plots
+
+    script:
+    """
+    gs -dBATCH -dNOPAUSE -q -dAutoRotatePages=/None -sDEVICE=pdfwrite -sOutputFile=genomic_signatures.pdf *
+    """
+}
+
+//
+//
+// process email {
+//     echo true
+//     executor "local"
+//
+//     input:
+//     file '*' from email_files.mix(email_VAF_plots,
+//                                     email_signatures_pie_plots,
+//                                     email_signatures_plots
+//                                     ).toList()
+//
+//     script:
+//     """
+//     echo *
+//     """
+// }
