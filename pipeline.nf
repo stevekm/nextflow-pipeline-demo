@@ -154,6 +154,7 @@ process deconstructSigs_signatures {
     tag { sample_ID }
     // executor "local"
     validExitStatus 0,11 // allow '11' failure triggered by no variants
+    errorStrategy 'ignore'
     publishDir "${params.output_dir}/Genomic_Signatures", mode: 'copy', overwrite: true,
         saveAs: {filename ->
             if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
@@ -195,28 +196,12 @@ process vaf_distribution_plot {
 
 }
 
-process merge_signatures_pie_plots {
-    executor "local"
-    publishDir "${params.output_dir}/Genomic_Signatures_Summary", mode: 'copy', overwrite: true
-
-    input:
-    file '*' from signatures_pie_plots.toList()
-
-    output:
-    file "genomic_signatures_pie.pdf" into email_signatures_pie_plots
-
-    script:
-    """
-    gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=genomic_signatures_pie.pdf *
-    """
-}
-
 
 
 process msisensor {
     tag { sample_ID }
     module 'samtools/1.3'
-    clusterOptions '-pe threaded 1-4 -j y'
+    clusterOptions '-pe threaded 1-4 -j y -l mem_free=40G'
     publishDir "${params.output_dir}/MSI", mode: 'copy', overwrite: true,
         saveAs: {filename ->
             if (filename == 'msisensor') "${sample_ID}.msisensor"
@@ -244,8 +229,9 @@ process msisensor {
     which samtools
     samtools index "$sample_tumor_bam"
     samtools index "$sample_normal_bam"
-    $params.msisensor_bin msi -d ${params.microsatellites} -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
-    rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai"
+    $params.subset_msisensor_microsatellite_list_script $sample_normal_bam $sample_tumor_bam -m ${params.microsatellites} -o microsatellites_list_subset.txt
+    $params.msisensor_bin msi -d microsatellites_list_subset.txt -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
+    rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai" microsatellites_list_subset.txt
     """
 }
 
@@ -442,6 +428,8 @@ process merge_VAF_plots {
 }
 
 process merge_signatures_plots {
+    validExitStatus 0,11 // allow '11' failure triggered by no variants
+    errorStrategy 'ignore'
     executor "local"
     publishDir "${params.output_dir}/Genomic_Signatures_Summary", mode: 'copy', overwrite: true
 
@@ -453,7 +441,34 @@ process merge_signatures_plots {
 
     script:
     """
-    gs -dBATCH -dNOPAUSE -q -dAutoRotatePages=/None -sDEVICE=pdfwrite -sOutputFile=genomic_signatures.pdf *
+    if [ "\$(ls -1 * | wc -l)" -gt 0 ]; then
+        gs -dBATCH -dNOPAUSE -q -dAutoRotatePages=/None -sDEVICE=pdfwrite -sOutputFile=genomic_signatures.pdf *
+    else
+        exit 11
+    fi
+    """
+}
+
+
+process merge_signatures_pie_plots {
+    validExitStatus 0,11 // allow '11' failure triggered by no variants
+    errorStrategy 'ignore'
+    executor "local"
+    publishDir "${params.output_dir}/Genomic_Signatures_Summary", mode: 'copy', overwrite: true
+
+    input:
+    file '*' from signatures_pie_plots.toList()
+
+    output:
+    file "genomic_signatures_pie.pdf" into email_signatures_pie_plots
+
+    script:
+    """
+    if [ "\$(ls -1 * | wc -l)" -gt 0 ]; then
+        gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=genomic_signatures_pie.pdf *
+    else
+        exit 11
+    fi
     """
 }
 
