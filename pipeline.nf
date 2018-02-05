@@ -224,14 +224,15 @@ process msisensor {
     file 'msisensor_somatic'
 
     script:
+    // $params.subset_msisensor_microsatellite_list_script *.bam -m $params.microsatellites -o microsatellites_subset.txt
+    // $params.subset_bam_bed_script *.bam -b $regions_bed -o targets_subset.bed
+    // rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai" targets_subset.bed microsatellites_subset.txt
     """
     echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\tTASK_ID:\${TASK_ID:-none}"
-    which samtools
     samtools index "$sample_tumor_bam"
     samtools index "$sample_normal_bam"
-    $params.subset_msisensor_microsatellite_list_script $sample_normal_bam $sample_tumor_bam -m ${params.microsatellites} -o microsatellites_list_subset.txt
-    $params.msisensor_bin msi -d microsatellites_list_subset.txt -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
-    rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai" microsatellites_list_subset.txt
+    $params.msisensor_bin msi -d $params.microsatellites -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
+    rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai"
     """
 }
 
