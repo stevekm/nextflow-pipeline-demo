@@ -60,3 +60,28 @@ RUN cd /opt/bin/msisensor && make
 # RUN cd /opt/bin/msisensor && ./msisensor scan -d "${HG19_FA}" -o "${HG19_MICROSATELLITES}"
 # RUN [ ! -e "${HG19_MICROSATELLITES}" ] && echo "hg19 microsatellites list file is not found at location: ${HG19_MICROSATELLITES}" && exit 1
 # RUN cd /opt/bin/msisensor/test && bash run.sh
+
+
+
+# ~~~~~ ANNOVAR ~~~~~ #
+# http://www.openbioinformatics.org/annovar/download/0wgxR2rIVP/annovar.revision150617.tar.gz
+ENV ANNOVAR_DIR /opt/bin/annovar
+ENV ANNOVAR_DB_DIR /opt/bin/annovar/db/hg19
+RUN cd /opt/bin && wget http://www.openbioinformatics.org/annovar/download/0wgxR2rIVP/annovar.revision150617.tar.gz && tar xvfz annovar.revision150617.tar.gz && rm -f annovar.revision150617.tar.gz
+RUN mkdir -p "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar 1000g2015aug "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar refGene "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar cosmic70 "${ANNOVAR_DB_DIR}"
+# RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar clinvar_20150629 "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar clinvar_20170905 "${ANNOVAR_DB_DIR}"
+# RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar cytoBand "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar intervar_20170202 "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar dbnsfp33a "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar esp6500siv2_all "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar kaviar_20150923 "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar gnomad_exome "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar gnomad_genome "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar avsnp150 "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar cadd13gt10 "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar fathmm "${ANNOVAR_DB_DIR}"
+RUN "${ANNOVAR_DIR}/annotate_variation.pl" -downdb -buildver hg19 -webfrom annovar eigen "${ANNOVAR_DB_DIR}"
