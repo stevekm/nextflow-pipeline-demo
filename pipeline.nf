@@ -1,19 +1,19 @@
-params.input_dir = "sns-dir"
-params.regions_bed = "targets.bed"
-params.probes_bed = "probes.bed"
-
-params.bam_bwa_dir = "${params.input_dir}/BAM-BWA"
-params.bam_gatk_ra_rc_dir = "${params.input_dir}/BAM-GATK-RA-RC"
-
-params.pairs_sheet = "${params.input_dir}/samples.pairs.csv"
-params.variants_sheet = "${params.input_dir}/summary.VCF-GATK-HC-annot.csv"
-params.variants_gatk_hc_dir = "${params.input_dir}/VCF-GATK-HC"
-
-params.variants_gatk_hc_annot_dir = "${params.input_dir}/VCF-GATK-HC-annot"
-// /ifs/data/molecpathlab/PNET_GYN/sns_WES/VCF-GATK-HC-annot/256.combined.txt
-
-params.qc_coverage_dir = "${params.input_dir}/QC-coverage"
-// sns-dir/QC-coverage/*.sample_interval_summary
+// params.input_dir = "sns-dir"
+// params.regions_bed = "targets.bed"
+// params.probes_bed = "probes.bed"
+//
+// params.bam_bwa_dir = "${params.input_dir}/BAM-BWA"
+// params.bam_gatk_ra_rc_dir = "${params.input_dir}/BAM-GATK-RA-RC"
+//
+// params.pairs_sheet = "${params.input_dir}/samples.pairs.csv"
+// params.variants_sheet = "${params.input_dir}/summary.VCF-GATK-HC-annot.csv"
+// params.variants_gatk_hc_dir = "${params.input_dir}/VCF-GATK-HC"
+//
+// params.variants_gatk_hc_annot_dir = "${params.input_dir}/VCF-GATK-HC-annot"
+// // /ifs/data/molecpathlab/PNET_GYN/sns_WES/VCF-GATK-HC-annot/256.combined.txt
+//
+// params.qc_coverage_dir = "${params.input_dir}/QC-coverage"
+// // sns-dir/QC-coverage/*.sample_interval_summary
 
 // get full path to the script
 // import java.io.File;
