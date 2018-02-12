@@ -1,14 +1,19 @@
 none:
 
 # NextFlow setup & run commands
-install:
+./nextflow:
 	curl -fsSL get.nextflow.io | bash
 
-run:
+install: ./nextflow
+
+run: install
 	./nextflow run pipeline.nf
 
-resume:
+resume: install
 	./nextflow run pipeline.nf -resume
+
+annot: install
+	./nextflow run annotate.nf
 
 clean-logs:
 	rm -f .nextflow.log.*
