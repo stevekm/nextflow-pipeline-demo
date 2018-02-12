@@ -15,6 +15,12 @@ resume: install
 annot: install
 	./nextflow run annotate.nf
 
+wes: install
+	./nextflow run wes.nf
+
+clean-wes: clean-logs
+	[ -d wes_output ] && mv wes_output wes_outputold && rm -rf wes_outputold
+
 clean-logs:
 	rm -f .nextflow.log.*
 
