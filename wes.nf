@@ -95,7 +95,7 @@ process trimmomatic {
 
 process bwa_mem {
     tag { "${sample_ID}" }
-    publishDir "${params.wes_output_dir}/bam-bwa", mode: 'copy', overwrite: true
+    // publishDir "${params.wes_output_dir}/bam-bwa", mode: 'copy', overwrite: true
     clusterOptions '-pe threaded 4-16'
     beforeScript 'echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\t"'
     module 'bwa/0.7.17'
@@ -110,25 +110,40 @@ process bwa_mem {
     """
     bwa mem -M -v 1 -t 16 -R '@RG\\tID:${sample_ID}\\tSM:${sample_ID}\\tLB:${sample_ID}\\tPL:ILLUMINA' "${params.bwa_hg19_ref_fa}" "${fastq_R1_trim}" "${fastq_R2_trim}" -o "${sample_ID}.sam"
     """
-    // bwa mem -M -v 1 -t 16 -R '@RG\tID:HapMap-B17-1267\tSM:HapMap-B17-1267\tLB:HapMap-B17-1267\tPL:ILLUMINA' /ifs/data/sequence/Illumina/igor/ref/hg19/BWA/genome.fa /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/FASTQ-TRIMMED/HapMap-B17-1267_R1.trim.fastq.gz /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/FASTQ-TRIMMED/HapMap-B17-1267_R2.trim.fastq.gz | /ifs/home/id460/software/sambamba/sambamba_v0.6.7 view --sam-input --nthreads=16 --filter='mapping_quality>=10' --format=bam --compression-level=0 /dev/stdin | /ifs/home/id460/software/sambamba/sambamba_v0.6.7 sort --nthreads=16 --memory-limit=16GB --out=/ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-BWA/HapMap-B17-1267.bam /dev/stdin
 }
 
 process sambamba {
     tag { "${sample_ID}" }
     publishDir "${params.wes_output_dir}/bam-bwa", mode: 'copy', overwrite: true
-    clusterOptions '-pe threaded 4-16'
+    clusterOptions '-pe threaded 1-16'
     beforeScript 'echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\t"'
 
     input:
     set val(sample_ID), file(sample_sam) from samples_bwa_sam
 
     output:
-    set val(sample_ID), file("${sample_ID}.bam") into samples_bam
+    set val(sample_ID), file("${sample_ID}.bam") into samples_bam, samples_bam2
 
     script:
     """
-    "${params.sambamba_bin}" view --sam-input --nthreads=\${NSLOTS:-1} --filter='mapping_quality>=10' --format=bam --compression-level=0 "sample_sam" | \
+    "${params.sambamba_bin}" view --sam-input --nthreads=\${NSLOTS:-1} --filter='mapping_quality>=10' --format=bam --compression-level=0 "${sample_sam}" | \
     "${params.sambamba_bin}" sort --nthreads=\${NSLOTS:-1} --memory-limit=16GB --out="${sample_ID}.bam" /dev/stdin
     """
-    /ifs/home/id460/software/sambamba/sambamba_v0.6.7 view --sam-input --nthreads=16 --filter='mapping_quality>=10' --format=bam --compression-level=0 /dev/stdin | /ifs/home/id460/software/sambamba/sambamba_v0.6.7 sort --nthreads=16 --memory-limit=16GB --out=/ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-BWA/HapMap-B17-1267.bam /dev/stdin
+}
+
+process sambamba_flagstat {
+    tag { "${sample_ID}" }
+    publishDir "${params.wes_output_dir}/sambamba-flagstat", mode: 'copy', overwrite: true
+    beforeScript 'echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\t"'
+
+    input:
+    set val(sample_ID), file(sample_bam) from samples_bam2
+
+    output:
+    file "${sample_ID}.flagstat.txt"
+
+    script:
+    """
+    "${params.sambamba_bin}" flagstat "${sample_bam}" > "${sample_ID}.flagstat.txt"
+    """
 }
