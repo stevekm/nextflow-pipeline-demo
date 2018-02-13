@@ -37,7 +37,7 @@ Channel.fromPath( file(params.fastq_raw_sheet) )
         // .groupBy { sample_ID, read1, read2 ->
         //     sample_ID
         // }
-        .groupTuple(by: [0, 1])
+        .groupTuple()
         .into { sample_fastq_r1r2; sample_fastq_r1r2_2 }
 
 sample_fastq_r1r2_2.println()
@@ -46,12 +46,14 @@ process fastq_merge {
     executor "local"
     echo true
     input:
-    set val(sample_ID), file("*") from sample_fastq_r1r2
+    set val(sample_ID), file(fastq_r1: "*"), file(fastq_r2: "*") from sample_fastq_r1r2
 
     script:
     """
     echo "${sample_ID} - \$(pwd)"
-    echo "*"
+    echo "R1 files: ${fastq_r1}"
+    echo "R2 files: ${fastq_r2}"
+    echo "----------------"
     # cat "*" > "${sample_ID}_R1.fastq.gz"
     """
 }
