@@ -9,7 +9,13 @@ hg19ref: base
 main: hg19ref
 	cd NGS580-main && docker build -t stevekm/ngs580-main .
 
+build-test:
+	cd test && docker build -t stevekm/test .
+
 build: main
 
 test:
 	docker run --rm -ti stevekm/ngs580-hg19ref bash
+
+test-test: build-test
+	docker run --rm -ti stevekm/test bash
