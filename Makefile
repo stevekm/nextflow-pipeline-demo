@@ -17,12 +17,21 @@ resume: install
 annot: install
 	./nextflow run annotate.nf
 
-wes: install
+
+samples.fastq-raw.csv:
+	./gather-fastqs.pl example-data/
+
+wes: install samples.fastq-raw.csv
 	./nextflow run wes.nf
 
+
+
+
+
+# ~~~~~ CLEANUP ~~~~~ #
 clean-wes: clean-logs
-	[ -d wes_output ] && mv wes_output wes_outputold && rm -rf wes_outputold
-	[ -d output-exomes ] && mv output-exomes output-exomesold && rm -rf output-exomesold
+	[ -d wes_output ] && mv wes_output wes_outputold && rm -rf wes_outputold &
+	[ -d output-exomes ] && mv output-exomes output-exomesold && rm -rf output-exomesold &
 
 clean-logs:
 	rm -f .nextflow.log.*
