@@ -236,8 +236,9 @@ process qc_target_reads_gatk_pad500 {
     clusterOptions '-pe threaded 1-8'
 
     input:
-    set val(sample_ID), file(sample_bam) from samples_dd_bam3
-    file targets_bed_file from targets_bed
+    // set val(chrom), val(sampleID), file(regions_file) from chroms.combine(samples).combine(regions_file_ch)
+    set val(sample_ID), file(sample_bam), file(targets_bed_file) from samples_dd_bam3.combine(targets_bed)
+    // file targets_bed_file from targets_bed
 
     output:
     file "${sample_ID}.pad500.sample_statistics"
@@ -299,7 +300,7 @@ process bam_ra_rc_gatk {
     // https://software.broadinstitute.org/gatk/documentation/tooldocs/3.8-0/org_broadinstitute_gatk_tools_walkers_bqsr_BaseRecalibrator.php
     // https://software.broadinstitute.org/gatk/documentation/tooldocs/3.8-0/org_broadinstitute_gatk_tools_walkers_bqsr_AnalyzeCovariates.php
     tag { "${sample_ID}" }
-    publishDir "${params.wes_output_dir}/Alignments", mode: 'copy', overwrite: true
+    publishDir "${params.wes_output_dir}/bam_ra_rc_gatk", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
     clusterOptions '-pe threaded 1-8'
@@ -343,7 +344,7 @@ process bam_ra_rc_gatk {
 
     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T BaseRecalibrator \
     --logging_level ERROR \
-    -nt \${NSLOTS:-1} \
+    -nct \${NSLOTS:-1} \
     -rf BadCigar \
     --reference_sequence "${params.hg19_fa}" \
     -knownSites "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
@@ -396,5 +397,5 @@ process bam_ra_rc_gatk {
 
 // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T AnalyzeCovariates --logging_level ERROR --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa -before /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.table1.txt -after /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.table2.txt -csv /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.csv -plots /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.pdf
 
-java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T PrintReads --logging_level ERROR -nct 16 -rf BadCigar --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa -BQSR /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.table1.txt --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-GATK-RA/HapMap-B17-1267.dd.ra.bam --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-GATK-RA-RC/HapMap-B17-1267.dd.ra.rc.bam
+// java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T PrintReads --logging_level ERROR -nct 16 -rf BadCigar --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa -BQSR /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.table1.txt --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-GATK-RA/HapMap-B17-1267.dd.ra.bam --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-GATK-RA-RC/HapMap-B17-1267.dd.ra.rc.bam
 }
