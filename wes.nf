@@ -25,7 +25,7 @@ Channel.fromPath( file(params.fastq_raw_sheet) )
         .into { sample_fastq_r1r2; sample_fastq_r1r2_2 }
 
 Channel.fromPath( file(params.targets_bed) )
-        .into { targets_bed; targets_bed2 }
+        .into { targets_bed; targets_bed2; targets_bed3; targets_bed4 }
 //
 //
 // DEBUGGING
@@ -175,7 +175,7 @@ process sambamba_dedup {
     set val(sample_ID), file(sample_bam) from samples_bam
 
     output:
-    set val(sample_ID), file("${sample_ID}.dd.bam") into samples_dd_bam, samples_dd_bam2, samples_dd_bam3
+    set val(sample_ID), file("${sample_ID}.dd.bam") into samples_dd_bam, samples_dd_bam2, samples_dd_bam3, samples_dd_bam4, samples_dd_bam5
 
     script:
     """
@@ -185,7 +185,7 @@ process sambamba_dedup {
 
 process sambamba_dedup_flagstat {
     tag { "${sample_ID}" }
-    executor "local"
+    // executor "local"
     publishDir "${params.wes_output_dir}/sambamba-flagstat-dd", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
@@ -205,7 +205,7 @@ process sambamba_dedup_flagstat {
 
 process qc_target_reads_gatk_genome {
     tag { "${sample_ID}" }
-    executor "local"
+    // executor "local"
     publishDir "${params.wes_output_dir}/qc-target-reads", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
@@ -227,7 +227,7 @@ process qc_target_reads_gatk_genome {
 
 process qc_target_reads_gatk_pad500 {
     tag { "${sample_ID}" }
-    executor "local"
+    // executor "local"
     publishDir "${params.wes_output_dir}/qc-target-reads", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
@@ -247,38 +247,44 @@ process qc_target_reads_gatk_pad500 {
     // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --interval_padding 500 --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.pad500
 }
 
-// process qc_target_reads_gatk_pad100 {
-//     tag { "${sample_ID}" }
-//     publishDir "${params.wes_output_dir}/qc-target-reads", mode: 'copy', overwrite: true
-//     beforeScript "${params.beforeScript_str}"
-//     afterScript "${params.afterScript_str}"
-//
-//     input:
-//     set val(sample_ID), file(sample_bam) from samples_dd_bam
-//
-//     output:
-//     file "${sample_ID}.genome.csv"
-//
-//     script:
-//     """
-//     """
-//     // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --interval_padding 100 --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.pad100
-// }
-//
-// process qc_target_reads_gatk_bed {
-//     tag { "${sample_ID}" }
-//     publishDir "${params.wes_output_dir}/qc-target-reads", mode: 'copy', overwrite: true
-//     beforeScript "${params.beforeScript_str}"
-//     afterScript "${params.afterScript_str}"
-//
-//     input:
-//     set val(sample_ID), file(sample_bam) from samples_dd_bam
-//
-//     output:
-//     file "${sample_ID}.genome.csv"
-//
-//     script:
-//     """
-//     """
-//     // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.bed
-// }
+process qc_target_reads_gatk_pad100 {
+    tag { "${sample_ID}" }
+    publishDir "${params.wes_output_dir}/qc-target-reads", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+
+    input:
+    set val(sample_ID), file(sample_bam) from samples_dd_bam4
+    file targets_bed_file from targets_bed2
+
+    output:
+    file "${sample_ID}.pad100.sample_statistics"
+    file "${sample_ID}.pad100.sample_summary"
+
+    script:
+    """
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${params.hg19_fa}" --intervals "${targets_bed_file}" --interval_padding 100 --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.pad100"
+    """
+    // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --interval_padding 100 --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.pad100
+}
+
+process qc_target_reads_gatk_bed {
+    tag { "${sample_ID}" }
+    publishDir "${params.wes_output_dir}/qc-target-reads", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+
+    input:
+    set val(sample_ID), file(sample_bam) from samples_dd_bam5
+    file targets_bed_file from targets_bed3
+
+    output:
+    file "${sample_ID}.bed.sample_statistics"
+    file "${sample_ID}.bed.sample_summary"
+
+    script:
+    """
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${params.hg19_fa}" --intervals "${targets_bed_file}" --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.bed"
+    """
+    // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.bed
+}
