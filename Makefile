@@ -20,6 +20,7 @@ wes: install
 
 clean-wes: clean-logs
 	[ -d wes_output ] && mv wes_output wes_outputold && rm -rf wes_outputold
+	[ -d output-exomes ] && mv output-exomes output-exomesold && rm -rf output-exomesold
 
 clean-logs:
 	rm -f .nextflow.log.*

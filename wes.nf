@@ -1,30 +1,18 @@
+params.fastq_raw_sheet = "samples.fastq-raw.csv"
+params.targets_bed = "targets.bed"
+params.wes_output_dir = "output-exomes"
 
-params.fastq_raw_sheet = "samples.fastq-raw.test.csv"
-params.wes_output_dir = "wes_output"
+// read samples from fastq raw sheet
+Channel.fromPath( file(params.fastq_raw_sheet) )
+        .splitCsv()
+        .map { row ->
+            def sample_ID = row[0]
+            return sample_ID
+        }
+        .set { sample_IDs }
 
-// Channel.fromPath( file(params.fastq_raw_sheet) )
-//         .splitCsv()
-//         .map { row ->
-//             def sample_ID = row[0]
-//             return sample_ID
-//         }
-//         .set { sample_IDs }
 
-// sample_IDs.unique().println()
-
-// Channel.fromPath( file(params.fastq_raw_sheet) )
-//         .splitCsv()
-//         .map { row ->
-//             def sample_ID = row[0]
-//             def read1 = file(row[1])
-//             def read2 = file(row[2])
-//
-//             return [ sample_ID, read1, read2 ]
-//         }
-//         .into { sample_fastq_raw; sample_fastq_raw2 }
-
-// sample_fastq_raw2.println()
-
+// read samples from fastq raw sheet, group R1 and R2 files per sample
 Channel.fromPath( file(params.fastq_raw_sheet) )
         .splitCsv()
         .map { row ->
@@ -36,9 +24,24 @@ Channel.fromPath( file(params.fastq_raw_sheet) )
         .groupTuple()
         .into { sample_fastq_r1r2; sample_fastq_r1r2_2 }
 
+Channel.fromPath( file(params.targets_bed) )
+        .into { targets_bed; targets_bed2 }
+//
+//
+// DEBUGGING
+//
+//
+
+// print the unique sample IDs
+sample_IDs.unique().println()
+
 process fastq_pairs_print {
+    // prints the fastq file R1 and R2 sets
     executor "local"
     echo true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+
     input:
     set val(sample_ID), file(fastq_r1: "*"), file(fastq_r2: "*") from sample_fastq_r1r2_2
 
@@ -52,8 +55,17 @@ process fastq_pairs_print {
     """
 }
 
+//
+//
+// EXOME SEQUENCING ANALYSIS PIPELINE
+//
+//
+
 process fastq_merge {
+    // merge the R1 and R2 fastq files into a single fastq each
     tag { "${sample_ID}" }
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
     publishDir "${params.wes_output_dir}/fastq-merge", mode: 'copy', overwrite: true
 
     input:
@@ -71,10 +83,13 @@ process fastq_merge {
 
 
 process trimmomatic {
+    // Illumina read trimming
+    // http://www.usadellab.org/cms/?page=trimmomatic
     tag { "${sample_ID}-${read1}-${read2}" }
     publishDir "${params.wes_output_dir}/fastq-trim", mode: 'copy', overwrite: true
     clusterOptions '-pe threaded 1-8'
-    beforeScript 'echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\t"'
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
 
     input:
     set val(sample_ID), file(read1), file(read2) from samples_fastq_merged
@@ -95,9 +110,9 @@ process trimmomatic {
 
 process bwa_mem {
     tag { "${sample_ID}" }
-    // publishDir "${params.wes_output_dir}/bam-bwa", mode: 'copy', overwrite: true
-    clusterOptions '-pe threaded 4-16'
-    beforeScript 'echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\t"'
+    clusterOptions '-pe threaded 1-16'
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
     module 'bwa/0.7.17'
 
     input:
@@ -112,11 +127,11 @@ process bwa_mem {
     """
 }
 
-process sambamba {
+process sambamba_view_sort {
     tag { "${sample_ID}" }
-    publishDir "${params.wes_output_dir}/bam-bwa", mode: 'copy', overwrite: true
     clusterOptions '-pe threaded 1-16'
-    beforeScript 'echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\t"'
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
 
     input:
     set val(sample_ID), file(sample_sam) from samples_bwa_sam
@@ -134,7 +149,8 @@ process sambamba {
 process sambamba_flagstat {
     tag { "${sample_ID}" }
     publishDir "${params.wes_output_dir}/sambamba-flagstat", mode: 'copy', overwrite: true
-    beforeScript 'echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\t"'
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
 
     input:
     set val(sample_ID), file(sample_bam) from samples_bam2
@@ -147,3 +163,122 @@ process sambamba_flagstat {
     "${params.sambamba_bin}" flagstat "${sample_bam}" > "${sample_ID}.flagstat.txt"
     """
 }
+
+process sambamba_dedup {
+    tag { "${sample_ID}" }
+    publishDir "${params.wes_output_dir}/bam-bwa", mode: 'copy', overwrite: true
+    clusterOptions '-pe threaded 1-16'
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+
+    input:
+    set val(sample_ID), file(sample_bam) from samples_bam
+
+    output:
+    set val(sample_ID), file("${sample_ID}.dd.bam") into samples_dd_bam, samples_dd_bam2, samples_dd_bam3
+
+    script:
+    """
+    "${params.sambamba_bin}" markdup --remove-duplicates --nthreads \${NSLOTS:-1} --hash-table-size 525000 --overflow-list-size 525000 "${sample_bam}" "${sample_ID}.dd.bam"
+    """
+}
+
+process sambamba_dedup_flagstat {
+    tag { "${sample_ID}" }
+    executor "local"
+    publishDir "${params.wes_output_dir}/sambamba-flagstat-dd", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+
+    input:
+    set val(sample_ID), file(sample_bam) from samples_dd_bam2
+
+    output:
+    file "${sample_ID}.dd.flagstat.txt"
+
+    script:
+    """
+    "${params.sambamba_bin}" flagstat "${sample_bam}" > "${sample_ID}.dd.flagstat.txt"
+    """
+
+}
+
+process qc_target_reads_gatk_genome {
+    tag { "${sample_ID}" }
+    executor "local"
+    publishDir "${params.wes_output_dir}/qc-target-reads", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+
+    input:
+    set val(sample_ID), file(sample_bam) from samples_dd_bam
+
+    output:
+    file "${sample_ID}.genome.sample_statistics"
+    file "${sample_ID}.genome.sample_summary"
+
+    script:
+    """
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${params.hg19_fa}" --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.genome"
+    """
+    // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.genome
+
+}
+
+process qc_target_reads_gatk_pad500 {
+    tag { "${sample_ID}" }
+    executor "local"
+    publishDir "${params.wes_output_dir}/qc-target-reads", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+
+    input:
+    set val(sample_ID), file(sample_bam) from samples_dd_bam3
+    file targets_bed_file from targets_bed
+
+    output:
+    file "${sample_ID}.pad500.sample_statistics"
+    file "${sample_ID}.pad500.sample_summary"
+
+    script:
+    """
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${params.hg19_fa}" --intervals "${targets_bed_file}" --interval_padding 500 --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.pad500"
+    """
+    // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --interval_padding 500 --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.pad500
+}
+
+// process qc_target_reads_gatk_pad100 {
+//     tag { "${sample_ID}" }
+//     publishDir "${params.wes_output_dir}/qc-target-reads", mode: 'copy', overwrite: true
+//     beforeScript "${params.beforeScript_str}"
+//     afterScript "${params.afterScript_str}"
+//
+//     input:
+//     set val(sample_ID), file(sample_bam) from samples_dd_bam
+//
+//     output:
+//     file "${sample_ID}.genome.csv"
+//
+//     script:
+//     """
+//     """
+//     // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --interval_padding 100 --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.pad100
+// }
+//
+// process qc_target_reads_gatk_bed {
+//     tag { "${sample_ID}" }
+//     publishDir "${params.wes_output_dir}/qc-target-reads", mode: 'copy', overwrite: true
+//     beforeScript "${params.beforeScript_str}"
+//     afterScript "${params.afterScript_str}"
+//
+//     input:
+//     set val(sample_ID), file(sample_bam) from samples_dd_bam
+//
+//     output:
+//     file "${sample_ID}.genome.csv"
+//
+//     script:
+//     """
+//     """
+//     // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.bed
+// }
