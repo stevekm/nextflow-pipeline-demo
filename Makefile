@@ -24,6 +24,9 @@ samples.fastq-raw.csv:
 wes: install samples.fastq-raw.csv
 	./nextflow run wes.nf -with-report -with-trace -with-timeline -with-dag flowchart.png
 
+wes-r: install samples.fastq-raw.csv
+	./nextflow run wes.nf -with-report -with-trace -with-timeline -with-dag flowchart.png -resume
+
 
 
 

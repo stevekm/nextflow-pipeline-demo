@@ -24,8 +24,42 @@ Channel.fromPath( file(params.fastq_raw_sheet) )
         .groupTuple()
         .into { sample_fastq_r1r2; sample_fastq_r1r2_2 }
 
+// target regions .bed file
 Channel.fromPath( file(params.targets_bed) )
-        .into { targets_bed; targets_bed2; targets_bed3; targets_bed4; targets_bed5; targets_bed6 }
+        .into { targets_bed; targets_bed2; targets_bed3; targets_bed4; targets_bed5; targets_bed6; targets_bed7 }
+
+// reference hg19 fasta file
+Channel.fromPath( file(params.hg19_fa) )
+        .into { ref_fasta;
+                ref_fasta2;
+                ref_fasta3;
+                ref_fasta4;
+                ref_fasta5;
+                ref_fasta6;
+                ref_fasta7;
+                ref_fasta8 }
+Channel.fromPath( file(params.hg19_fai) )
+        .into { ref_fai;
+                ref_fai2;
+                ref_fai3;
+                ref_fai4;
+                ref_fai5;
+                ref_fai6;
+                ref_fai7;
+                ref_fai8 }
+Channel.fromPath( file(params.hg19_dict) )
+        .into { ref_dict;
+                ref_dict2;
+                ref_dict3;
+                ref_dict4;
+                ref_dict5;
+                ref_dict6;
+                ref_dict7;
+                ref_dict8 }
+
+Channel.fromPath( file(params.hg19_chrom_sizes) )
+        .into { ref_chrom_sizes }
+
 //
 //
 // DEBUGGING
@@ -176,7 +210,7 @@ process sambamba_dedup {
     set val(sample_ID), file(sample_bam) from samples_bam
 
     output:
-    set val(sample_ID), file("${sample_ID}.dd.bam") into samples_dd_bam, samples_dd_bam2, samples_dd_bam3, samples_dd_bam4, samples_dd_bam5, samples_dd_bam6
+    set val(sample_ID), file("${sample_ID}.dd.bam") into samples_dd_bam, samples_dd_bam2, samples_dd_bam3, samples_dd_bam4, samples_dd_bam5, samples_dd_bam6, samples_dd_bam7
 
     script:
     """
@@ -213,7 +247,7 @@ process qc_target_reads_gatk_genome {
     clusterOptions '-pe threaded 1-8'
 
     input:
-    set val(sample_ID), file(sample_bam) from samples_dd_bam
+    set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_bam.combine(ref_fasta).combine(ref_fai).combine(ref_dict)
 
     output:
     file "${sample_ID}.genome.sample_statistics"
@@ -221,9 +255,8 @@ process qc_target_reads_gatk_genome {
 
     script:
     """
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${params.hg19_fa}" --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.genome"
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${ref_fasta}" --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.genome"
     """
-    // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.genome
 
 }
 
@@ -236,7 +269,7 @@ process qc_target_reads_gatk_pad500 {
     clusterOptions '-pe threaded 1-8'
 
     input:
-    set val(sample_ID), file(sample_bam), file(targets_bed_file) from samples_dd_bam3.combine(targets_bed)
+    set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_bam3.combine(targets_bed).combine(ref_fasta2).combine(ref_fai2).combine(ref_dict2)
 
     output:
     file "${sample_ID}.pad500.sample_statistics"
@@ -244,9 +277,8 @@ process qc_target_reads_gatk_pad500 {
 
     script:
     """
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${params.hg19_fa}" --intervals "${targets_bed_file}" --interval_padding 500 --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.pad500"
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${ref_fasta}" --intervals "${targets_bed_file}" --interval_padding 500 --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.pad500"
     """
-    // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --interval_padding 500 --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.pad500
 }
 
 process qc_target_reads_gatk_pad100 {
@@ -257,7 +289,7 @@ process qc_target_reads_gatk_pad100 {
     clusterOptions '-pe threaded 1-8'
 
     input:
-    set val(sample_ID), file(sample_bam), file(targets_bed_file) from samples_dd_bam4.combine(targets_bed2)
+    set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_bam4.combine(targets_bed2).combine(ref_fasta3).combine(ref_fai3).combine(ref_dict3)
 
     output:
     file "${sample_ID}.pad100.sample_statistics"
@@ -265,9 +297,8 @@ process qc_target_reads_gatk_pad100 {
 
     script:
     """
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${params.hg19_fa}" --intervals "${targets_bed_file}" --interval_padding 100 --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.pad100"
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${ref_fasta}" --intervals "${targets_bed_file}" --interval_padding 100 --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.pad100"
     """
-    // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --interval_padding 100 --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.pad100
 }
 
 process qc_target_reads_gatk_bed {
@@ -278,7 +309,7 @@ process qc_target_reads_gatk_bed {
     clusterOptions '-pe threaded 1-8'
 
     input:
-    set val(sample_ID), file(sample_bam), file(targets_bed_file) from samples_dd_bam5.combine(targets_bed3)
+    set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_bam5.combine(targets_bed3).combine(ref_fasta4).combine(ref_fai4).combine(ref_dict4)
 
     output:
     file "${sample_ID}.bed.sample_statistics"
@@ -286,9 +317,8 @@ process qc_target_reads_gatk_bed {
 
     script:
     """
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${params.hg19_fa}" --intervals "${targets_bed_file}" --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.bed"
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${ref_fasta}" --intervals "${targets_bed_file}" --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.bed"
     """
-    // java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage -dt NONE -rf BadCigar -nt 16 --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --outputFormat csv --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-target-reads/HapMap-B17-1267.bed
 }
 
 process bam_ra_rc_gatk {
@@ -302,11 +332,11 @@ process bam_ra_rc_gatk {
     clusterOptions '-pe threaded 1-8'
 
     input:
-    set val(sample_ID), file(sample_bam), file(targets_bed_file) from samples_dd_bam6.combine(targets_bed4)
+    set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_bam6.combine(targets_bed4).combine(ref_fasta5).combine(ref_fai5).combine(ref_dict5)
 
     output:
+    set val(sample_ID), file("${sample_ID}.dd.ra.rc.bam") into samples_dd_ra_rc_bam, samples_dd_ra_rc_bam2, samples_dd_ra_rc_bam3
     file "${sample_ID}.intervals"
-    file "${sample_ID}.dd.ra.rc.bam" into samples_dd_ra_rc_bam
     file "${sample_ID}.table1.txt"
     file "${sample_ID}.table2.txt"
     file "${sample_ID}.csv"
@@ -318,7 +348,7 @@ process bam_ra_rc_gatk {
     -dt NONE \
     --logging_level ERROR \
     -nt \${NSLOTS:-1} \
-    --reference_sequence "${params.hg19_fa}" \
+    --reference_sequence "${ref_fasta}" \
     -known "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
     -known "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
     --intervals "${targets_bed_file}" \
@@ -329,7 +359,7 @@ process bam_ra_rc_gatk {
     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T IndelRealigner \
     -dt NONE \
     --logging_level ERROR \
-    --reference_sequence "${params.hg19_fa}" \
+    --reference_sequence "${ref_fasta}" \
     --maxReadsForRealignment 50000 \
     -known "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
     -known "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
@@ -341,7 +371,7 @@ process bam_ra_rc_gatk {
     --logging_level ERROR \
     -nct \${NSLOTS:-1} \
     -rf BadCigar \
-    --reference_sequence "${params.hg19_fa}" \
+    --reference_sequence "${ref_fasta}" \
     -knownSites "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
     -knownSites "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
     -knownSites "${params.dbsnp_138_hg19_vcf}" \
@@ -354,7 +384,7 @@ process bam_ra_rc_gatk {
     --logging_level ERROR \
     -nct \${NSLOTS:-1} \
     -rf BadCigar \
-    --reference_sequence "${params.hg19_fa}" \
+    --reference_sequence "${ref_fasta}" \
     -knownSites "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
     -knownSites "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
     -knownSites "${params.dbsnp_138_hg19_vcf}" \
@@ -366,7 +396,7 @@ process bam_ra_rc_gatk {
 
     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T AnalyzeCovariates \
     --logging_level ERROR \
-    --reference_sequence "${params.hg19_fa}" \
+    --reference_sequence "${ref_fasta}" \
     -before "${sample_ID}.table1.txt" \
     -after "${sample_ID}.table2.txt" \
     -csv "${sample_ID}.csv" \
@@ -376,7 +406,7 @@ process bam_ra_rc_gatk {
     --logging_level ERROR \
     -nct \${NSLOTS:-1} \
     -rf BadCigar \
-    --reference_sequence "${params.hg19_fa}" \
+    --reference_sequence "${ref_fasta}" \
     -BQSR "${sample_ID}.table1.txt" \
     --input_file "${sample_ID}.dd.ra.bam" \
     --out "${sample_ID}.dd.ra.rc.bam"
@@ -392,29 +422,145 @@ process qc_coverage_gatk {
     clusterOptions '-pe threaded 1-8'
 
     input:
+    set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_ra_rc_bam.combine(targets_bed5).combine(ref_fasta6).combine(ref_fai6).combine(ref_dict6)
 
     output:
+    file "${sample_ID}.sample_summary"
+    file "${sample_ID}.sample_statistics"
+    file "${sample_ID}.sample_interval_summary"
+    file "${sample_ID}.sample_interval_statistics"
+    file "${sample_ID}.sample_cumulative_coverage_proportions"
+    file "${sample_ID}.sample_cumulative_coverage_counts"
 
     script:
     """
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage \
     -dt NONE \
     --logging_level ERROR \
     -rf BadCigar \
-    --reference_sequence "${params.hg19_fa}" \
-    --intervals
+    --reference_sequence "${ref_fasta}" \
+    --intervals "${targets_bed_file}" \
+    --omitDepthOutputAtEachBase \
+    -ct 10 -ct 50 -ct 100 -ct 500 \
+    -mbq 20 -mmq 20 --nBins 999 \
+    --start 1 --stop 1000 \
+    --input_file "${sample_bam}" \
+    --outputFormat csv \
+    --out "${sample_ID}"
     """
-    // java -Xms32G -Xmx32G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage
-    // -dt NONE
-    // --logging_level ERROR
-    // -rf BadCigar
-    // --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa
-    --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed
-    --omitDepthOutputAtEachBase
-    -ct 10 -ct 50 -ct 100 -ct 500
-    -mbq 20 -mmq 20 --nBins 999
-    --start 1 --stop 1000
-    --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-GATK-RA-RC/HapMap-B17-1267.dd.ra.rc.bam
-    --outputFormat csv
-    --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-coverage/HapMap-B17-1267
+}
+
+process pad_bed {
+    publishDir "${params.wes_output_dir}/targets", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+    module 'bedtools/2.26.0'
+
+    input:
+    set file(targets_bed_file), file(ref_chrom_sizes) from targets_bed6.combine(ref_chrom_sizes)
+
+    output:
+    file("targets.pad10.bed") into targets_pad_bed
+
+    script:
+    """
+    cat "${targets_bed_file}" | LC_ALL=C sort -k1,1 -k2,2n | bedtools slop -g "${ref_chrom_sizes}" -b 10 | bedtools merge -d 5 > targets.pad10.bed
+    """
+}
+
+process lofreq {
+    tag { "${sample_ID}" }
+    publishDir "${params.wes_output_dir}/vcf_lofreq", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+    clusterOptions '-pe threaded 1-8'
+    module 'samtools/1.3'
+
+    input:
+    set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai) from samples_dd_ra_rc_bam2.combine(targets_pad_bed).combine(ref_fasta7).combine(ref_fai7)
+
+    output:
+    file("${sample_ID}.vcf")
+    file("${sample_ID}.vcf.bgz")
+    file("${sample_ID}.vcf.bgz.csi")
+    file("${sample_ID}.norm.vcf")
+
+    script:
+    """
+    samtools index "${sample_bam}"
+
+    "${params.lofreq_bin}" call-parallel \
+    --call-indels \
+    --pp-threads \${NSLOTS:-1} \
+    --ref "${ref_fasta}" \
+    --bed "${targets_bed_file}" \
+    --out "${sample_ID}.vcf" \
+    "${sample_bam}"
+
+    bgzip -c "${sample_ID}.vcf" > "${sample_ID}.vcf.bgz"
+
+    bcftools index "${sample_ID}.vcf.bgz"
+
+    bcftools norm \
+    --multiallelics \
+    -both \
+    --output-type v \
+    "${sample_ID}.vcf.bgz" | \
+    bcftools norm \
+    --fasta-ref "${ref_fasta}" \
+    --output-type v - | \
+    bcftools view \
+    --exclude 'DP<5' \
+    --output-type v >  "${sample_ID}.norm.vcf"
+
+    rm -f "${sample_bam}.bai"
+    """
+}
+
+process gatk_hc {
+    tag { "${sample_ID}" }
+    publishDir "${params.wes_output_dir}/vcf_hc", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+    clusterOptions '-pe threaded 1-8'
+    module 'samtools/1.3'
+
+    input:
+    set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_ra_rc_bam3.combine(targets_bed7).combine(ref_fasta8).combine(ref_fai8).combine(ref_dict8)
+
+    output:
+    file("${sample_ID}.vcf")
+    file("${sample_ID}.norm.vcf")
+
+    script:
+    """
+    samtools index "${sample_bam}"
+
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T HaplotypeCaller \
+    -dt NONE \
+    --logging_level ERROR \
+    -nct \${NSLOTS:-1} \
+    --max_alternate_alleles 3 \
+    --standard_min_confidence_threshold_for_calling 50 \
+    --reference_sequence "${ref_fasta}" \
+    --intervals "${targets_bed_file}" \
+    --interval_padding 10 \
+    --input_file "${sample_bam}" \
+    --out "${sample_ID}.vcf"
+
+    cat "${sample_ID}.vcf" | \
+    bcftools norm \
+    --multiallelics \
+    -both \
+    --output-type v - | \
+    bcftools norm \
+    --fasta-ref "${ref_fasta}" \
+    --output-type v - | \
+    bcftools view \
+    --exclude 'DP<5' \
+    --output-type v > "${sample_ID}.norm.vcf"
+
+
+    rm -f "${sample_bam}.bai"
+    """
 }
