@@ -41,6 +41,7 @@ clean-timelines:
 clean-reports:
 	rm -f report.html.*
 	rm -f nextflow-report.html.*
+	rm -f nextflow.html.*
 
 clean-flowcharts:
 	rm -f flowchart.png.*
@@ -55,7 +56,7 @@ clean: clean-logs clean-traces clean-timelines clean-reports clean-flowcharts
 
 clean-all: clean clean-output clean-work
 
-clean-wes: clean
+clean-wes: clean clean-work
 	[ -d wes_output ] && mv wes_output wes_outputold && rm -rf wes_outputold &
 	[ -d output-exomes ] && mv output-exomes output-exomesold && rm -rf output-exomesold &
 
