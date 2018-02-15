@@ -25,7 +25,7 @@ Channel.fromPath( file(params.fastq_raw_sheet) )
         .into { sample_fastq_r1r2; sample_fastq_r1r2_2 }
 
 Channel.fromPath( file(params.targets_bed) )
-        .into { targets_bed; targets_bed2; targets_bed3; targets_bed4 }
+        .into { targets_bed; targets_bed2; targets_bed3; targets_bed4; targets_bed5; targets_bed6 }
 //
 //
 // DEBUGGING
@@ -236,9 +236,7 @@ process qc_target_reads_gatk_pad500 {
     clusterOptions '-pe threaded 1-8'
 
     input:
-    // set val(chrom), val(sampleID), file(regions_file) from chroms.combine(samples).combine(regions_file_ch)
     set val(sample_ID), file(sample_bam), file(targets_bed_file) from samples_dd_bam3.combine(targets_bed)
-    // file targets_bed_file from targets_bed
 
     output:
     file "${sample_ID}.pad500.sample_statistics"
@@ -259,8 +257,7 @@ process qc_target_reads_gatk_pad100 {
     clusterOptions '-pe threaded 1-8'
 
     input:
-    set val(sample_ID), file(sample_bam) from samples_dd_bam4
-    file targets_bed_file from targets_bed2
+    set val(sample_ID), file(sample_bam), file(targets_bed_file) from samples_dd_bam4.combine(targets_bed2)
 
     output:
     file "${sample_ID}.pad100.sample_statistics"
@@ -281,8 +278,7 @@ process qc_target_reads_gatk_bed {
     clusterOptions '-pe threaded 1-8'
 
     input:
-    set val(sample_ID), file(sample_bam) from samples_dd_bam5
-    file targets_bed_file from targets_bed3
+    set val(sample_ID), file(sample_bam), file(targets_bed_file) from samples_dd_bam5.combine(targets_bed3)
 
     output:
     file "${sample_ID}.bed.sample_statistics"
@@ -306,12 +302,11 @@ process bam_ra_rc_gatk {
     clusterOptions '-pe threaded 1-8'
 
     input:
-    set val(sample_ID), file(sample_bam) from samples_dd_bam6
-    file targets_bed_file from targets_bed4
+    set val(sample_ID), file(sample_bam), file(targets_bed_file) from samples_dd_bam6.combine(targets_bed4)
 
     output:
     file "${sample_ID}.intervals"
-    file "${sample_ID}.dd.ra.rc.bam"
+    file "${sample_ID}.dd.ra.rc.bam" into samples_dd_ra_rc_bam
     file "${sample_ID}.table1.txt"
     file "${sample_ID}.table2.txt"
     file "${sample_ID}.csv"
@@ -387,15 +382,39 @@ process bam_ra_rc_gatk {
     --out "${sample_ID}.dd.ra.rc.bam"
     """
 
-// java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T RealignerTargetCreator -dt NONE --logging_level ERROR -nt 16 --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa -known /ifs/home/id460/ref/hg19/gatk-bundle/1000G_phase1.indels.hg19.vcf -known /ifs/home/id460/ref/hg19/gatk-bundle/Mills_and_1000G_gold_standard.indels.hg19.vcf --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --interval_padding 10 --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.intervals
+}
 
-// java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T IndelRealigner -dt NONE --logging_level ERROR --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa --maxReadsForRealignment 50000 -known /ifs/home/id460/ref/hg19/gatk-bundle/1000G_phase1.indels.hg19.vcf -known /ifs/home/id460/ref/hg19/gatk-bundle/Mills_and_1000G_gold_standard.indels.hg19.vcf -targetIntervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.intervals --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-DD/HapMap-B17-1267.dd.bam --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-GATK-RA/HapMap-B17-1267.dd.ra.bam
+process qc_coverage_gatk {
+    tag { "${sample_ID}" }
+    publishDir "${params.wes_output_dir}/qc_coverage_gatk", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+    clusterOptions '-pe threaded 1-8'
 
-// java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T BaseRecalibrator --logging_level ERROR -nct 16 -rf BadCigar --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa -knownSites /ifs/home/id460/ref/hg19/gatk-bundle/1000G_phase1.indels.hg19.vcf -knownSites /ifs/home/id460/ref/hg19/gatk-bundle/Mills_and_1000G_gold_standard.indels.hg19.vcf -knownSites /ifs/home/id460/ref/hg19/gatk-bundle/dbsnp_138.hg19.vcf --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --interval_padding 10 --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-GATK-RA/HapMap-B17-1267.dd.ra.bam --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.table1.txt
+    input:
 
-// java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T BaseRecalibrator --logging_level ERROR -nct 16 -rf BadCigar --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa -knownSites /ifs/home/id460/ref/hg19/gatk-bundle/1000G_phase1.indels.hg19.vcf -knownSites /ifs/home/id460/ref/hg19/gatk-bundle/Mills_and_1000G_gold_standard.indels.hg19.vcf -knownSites /ifs/home/id460/ref/hg19/gatk-bundle/dbsnp_138.hg19.vcf --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed --interval_padding 10 --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-GATK-RA/HapMap-B17-1267.dd.ra.bam -BQSR /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.table1.txt --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.table2.txt
+    output:
 
-// java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T AnalyzeCovariates --logging_level ERROR --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa -before /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.table1.txt -after /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.table2.txt -csv /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.csv -plots /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.pdf
-
-// java -Xms16G -Xmx16G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T PrintReads --logging_level ERROR -nct 16 -rf BadCigar --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa -BQSR /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/logs-bam-ra-rc-gatk/HapMap-B17-1267.table1.txt --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-GATK-RA/HapMap-B17-1267.dd.ra.bam --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-GATK-RA-RC/HapMap-B17-1267.dd.ra.rc.bam
+    script:
+    """
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage
+    -dt NONE \
+    --logging_level ERROR \
+    -rf BadCigar \
+    --reference_sequence "${params.hg19_fa}" \
+    --intervals
+    """
+    // java -Xms32G -Xmx32G -jar /ifs/home/id460/software/GenomeAnalysisTK/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar -T DepthOfCoverage
+    // -dt NONE
+    // --logging_level ERROR
+    // -rf BadCigar
+    // --reference_sequence /ifs/data/sequence/Illumina/igor/ref/hg19/genome.fa
+    --intervals /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/targets.bed
+    --omitDepthOutputAtEachBase
+    -ct 10 -ct 50 -ct 100 -ct 500
+    -mbq 20 -mmq 20 --nBins 999
+    --start 1 --stop 1000
+    --input_file /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/BAM-GATK-RA-RC/HapMap-B17-1267.dd.ra.rc.bam
+    --outputFormat csv
+    --out /ifs/data/molecpathlab/NGS580_WES-development/sns-demo/QC-coverage/HapMap-B17-1267
 }

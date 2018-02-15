@@ -22,19 +22,28 @@ samples.fastq-raw.csv:
 	./gather-fastqs.pl example-data/
 
 wes: install samples.fastq-raw.csv
-	./nextflow run wes.nf
+	./nextflow run wes.nf -with-report -with-trace -with-timeline -with-dag flowchart.png
 
 
 
 
 
 # ~~~~~ CLEANUP ~~~~~ #
-clean-wes: clean-logs
-	[ -d wes_output ] && mv wes_output wes_outputold && rm -rf wes_outputold &
-	[ -d output-exomes ] && mv output-exomes output-exomesold && rm -rf output-exomesold &
+clean-traces:
+	rm -f trace.txt.*
 
 clean-logs:
 	rm -f .nextflow.log.*
+
+clean-timelines:
+	rm -f timeline.html.*
+
+clean-reports:
+	rm -f report.html.*
+	rm -f nextflow-report.html.*
+
+clean-flowcharts:
+	rm -f flowchart.png.*
 
 clean-output:
 	[ -d output ] && mv output oldoutput && rm -rf oldoutput &
@@ -42,9 +51,14 @@ clean-output:
 clean-work:
 	[ -d work ] && mv work oldwork && rm -rf oldwork &
 
-clean: clean-logs clean-work
+clean: clean-logs clean-traces clean-timelines clean-reports clean-flowcharts
 
-clean-all: clean clean-output
+clean-all: clean clean-output clean-work
+
+clean-wes: clean
+	[ -d wes_output ] && mv wes_output wes_outputold && rm -rf wes_outputold &
+	[ -d output-exomes ] && mv output-exomes output-exomesold && rm -rf output-exomesold &
+
 
 
 # ~~~~~ SETUP ~~~~~ #
