@@ -481,8 +481,6 @@ process lofreq {
 
     output:
     file("${sample_ID}.vcf")
-    file("${sample_ID}.vcf.bgz")
-    file("${sample_ID}.vcf.bgz.csi")
     file("${sample_ID}.norm.vcf")
 
     script:
@@ -559,7 +557,6 @@ process gatk_hc {
     bcftools view \
     --exclude 'DP<5' \
     --output-type v > "${sample_ID}.norm.vcf"
-
 
     rm -f "${sample_bam}.bai"
     """
