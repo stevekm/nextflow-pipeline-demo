@@ -26,7 +26,13 @@ Channel.fromPath( file(params.fastq_raw_sheet) )
 
 // target regions .bed file
 Channel.fromPath( file(params.targets_bed) )
-        .into { targets_bed; targets_bed2; targets_bed3; targets_bed4; targets_bed5; targets_bed6; targets_bed7 }
+        .into { targets_bed;
+                targets_bed2;
+                targets_bed3;
+                targets_bed4;
+                targets_bed5;
+                targets_bed6;
+                targets_bed7 }
 
 // reference hg19 fasta file
 Channel.fromPath( file(params.hg19_fa) )
