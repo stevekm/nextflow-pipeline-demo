@@ -1,0 +1,25 @@
+[Header],,,,,,
+IEMFileVersion,4,,,,,
+Investigator Name,,,,,,
+Project Name,NS17-22,,,,,
+Experiment Name,NS17-22,,,,,
+Date,9/18/2017,,,,,
+Workflow,GenerateFASTQ,,,,,
+Application,FASTQ Only,,,,,
+Assay,KAPA-IDT,,,,,
+Description,Description,,,,,
+Chemistry,Capture Enrichment,,,,,
+[Reads],,,,,,
+151,,,,,,
+151,,,,,,
+[Settings],,,,,,
+AdapterSequenceRead1,AGATCGGAAGAGCACACGTC,,,,,
+AdapterSequenceRead2,AGATCGGAAGAGCGTCGTGT,,,,,
+,,,,,,
+[Data],,,,,,
+Sample_ID,Sample_Name,I7_Index_ID,index,Sample_Project,Description,GenomeFolder
+NTC-H2O,NTC-H2O,A007,CAGATCTG,NS17-22,Description,PhiX\Illumina\RTA\Sequence\WholeGenomeFASTA
+SeraCare-1to1-Positive,SeraCare-1to1-Positive,A019,ACAGCAGA,NS17-22,Description,PhiX\Illumina\RTA\Sequence\WholeGenomeFASTA
+SeraCare-1to2-Positive,SeraCare-1to2-Positive,A031,GACTAGTA,NS17-22,Description,PhiX\Illumina\RTA\Sequence\WholeGenomeFASTA
+SeraCare-1to4-Positive,SeraCare-1to4-Positive,A043,CTCAATGA,NS17-22,Description,PhiX\Illumina\RTA\Sequence\WholeGenomeFASTA
+HapMap-B17-1267,HapMap-B17-1267,A091,CTAAGGTC,NS17-22,Description,PhiX\Illumina\RTA\Sequence\WholeGenomeFASTA
