@@ -1,17 +1,3 @@
-params.fastq_raw_sheet = "samples.fastq-raw.csv"
-params.targets_bed = "targets.bed"
-params.wes_output_dir = "output-exomes"
-
-// read samples from fastq raw sheet
-Channel.fromPath( file(params.fastq_raw_sheet) )
-        .splitCsv()
-        .map { row ->
-            def sample_ID = row[0]
-            return sample_ID
-        }
-        .set { sample_IDs }
-
-
 // read samples from fastq raw sheet, group R1 and R2 files per sample
 Channel.fromPath( file(params.fastq_raw_sheet) )
         .splitCsv()
@@ -32,7 +18,8 @@ Channel.fromPath( file(params.targets_bed) )
                 targets_bed4;
                 targets_bed5;
                 targets_bed6;
-                targets_bed7 }
+                targets_bed7;
+                targets_bed8 }
 
 // reference hg19 fasta file
 Channel.fromPath( file(params.hg19_fa) )
@@ -43,7 +30,8 @@ Channel.fromPath( file(params.hg19_fa) )
                 ref_fasta5;
                 ref_fasta6;
                 ref_fasta7;
-                ref_fasta8 }
+                ref_fasta8;
+                ref_fasta9 }
 Channel.fromPath( file(params.hg19_fai) )
         .into { ref_fai;
                 ref_fai2;
@@ -52,7 +40,8 @@ Channel.fromPath( file(params.hg19_fai) )
                 ref_fai5;
                 ref_fai6;
                 ref_fai7;
-                ref_fai8 }
+                ref_fai8;
+                ref_fai9 }
 Channel.fromPath( file(params.hg19_dict) )
         .into { ref_dict;
                 ref_dict2;
@@ -61,10 +50,11 @@ Channel.fromPath( file(params.hg19_dict) )
                 ref_dict5;
                 ref_dict6;
                 ref_dict7;
-                ref_dict8 }
+                ref_dict8;
+                ref_dict9 }
 
 Channel.fromPath( file(params.hg19_chrom_sizes) )
-        .into { ref_chrom_sizes }
+        .set { ref_chrom_sizes }
 
 //
 //
@@ -72,8 +62,6 @@ Channel.fromPath( file(params.hg19_chrom_sizes) )
 //
 //
 
-// print the unique sample IDs
-sample_IDs.unique().println()
 
 process fastq_pairs_print {
     // prints the fastq file R1 and R2 sets
@@ -332,7 +320,7 @@ process bam_ra_rc_gatk {
     // https://software.broadinstitute.org/gatk/documentation/tooldocs/3.8-0/org_broadinstitute_gatk_tools_walkers_bqsr_BaseRecalibrator.php
     // https://software.broadinstitute.org/gatk/documentation/tooldocs/3.8-0/org_broadinstitute_gatk_tools_walkers_bqsr_AnalyzeCovariates.php
     tag { "${sample_ID}" }
-    publishDir "${params.wes_output_dir}/bam_ra_rc_gatk", mode: 'copy', overwrite: true
+    publishDir "${params.wes_output_dir}/${params.bam_ra_rc_gatk_dir}", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
     clusterOptions '-pe threaded 1-8'
@@ -341,7 +329,7 @@ process bam_ra_rc_gatk {
     set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_bam6.combine(targets_bed4).combine(ref_fasta5).combine(ref_fai5).combine(ref_dict5)
 
     output:
-    set val(sample_ID), file("${sample_ID}.dd.ra.rc.bam") into samples_dd_ra_rc_bam, samples_dd_ra_rc_bam2, samples_dd_ra_rc_bam3
+    set val(sample_ID), file("${sample_ID}.dd.ra.rc.bam") into samples_dd_ra_rc_bam, samples_dd_ra_rc_bam2, samples_dd_ra_rc_bam3, samples_dd_ra_rc_bam4
     file "${sample_ID}.intervals"
     file "${sample_ID}.table1.txt"
     file "${sample_ID}.table2.txt"
