@@ -40,7 +40,6 @@ Channel.fromPath( file(params.samples_tumor_normal_sheet) )
         .combine(ref_dict)
         .combine(dbsnp_ref_vcf)
         .combine(cosmic_ref_vcf)
-        // .subscribe { println "${it}" }
         .into { samples_pairs; samples_pairs2 }
 
 // get the unique chromosomes in the targets bed file
@@ -55,8 +54,6 @@ Channel.fromPath( params.targets_bed )
 
 process mutect2 {
     tag { "${comparison_ID}:${chrom}" }
-    // executor "local"
-    // echo true
     publishDir "${params.wes_output_dir}/vcf_mutect2", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
@@ -97,5 +94,4 @@ process mutect2 {
     rm -f "${normal_bam}.bai"
     rm -f "${comparison_ID}.${chrom}.bed"
     """
-
 }
