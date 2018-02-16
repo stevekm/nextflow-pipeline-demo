@@ -9,6 +9,6 @@ fastq_dir="${1:-none}"
 [ ! -d "$fastq_dir" ] && printf "ERROR: fastq_dir is not a dir: ${fastq_dir}\n" && exit 1
 
 [ -f "samples.fastq-raw.csv "] && rm -f "samples.fastq-raw.csv"
-./gather-fastqs.pl "$fastq_dir"
+bin/gather-fastqs.pl "$fastq_dir"
 
 sed 's/\,.*/,NA/g' "samples.fastq-raw.csv" | LC_ALL=C sort -u > "samples.tumor.normal.csv"
