@@ -151,7 +151,6 @@ def parse():
     """
     Parses script arguments
     """
-    # search_dirs = sys.argv[1:]
     parser = argparse.ArgumentParser(description='This script will generate samplesheets for the analysis based on .fastq.gz files in the supplied directories')
     parser.add_argument("search_dirs", help="Paths to input samplesheet file", nargs="+")
     parser.add_argument("-p", default = None, dest = 'output_prefix', metavar = 'prefix', help="Prefix for samplesheet files")

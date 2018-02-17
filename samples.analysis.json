@@ -17,7 +17,7 @@
         "Tumor": "HapMap-B17-1267"
     }, 
     {
-        "Normal": "NA", 
+        "Normal": "HapMap-B17-1267", 
         "R1": [
             "example-data/SeraCare-1to1-Positive_S2_L001_R1_001.fastq.gz", 
             "example-data/SeraCare-1to1-Positive_S2_L002_R1_001.fastq.gz", 
