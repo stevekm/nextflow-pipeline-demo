@@ -38,7 +38,7 @@ Only file names as described below are supported:
 
 import os
 import sys
-import find
+from bin import find
 import re
 import csv
 import json
@@ -128,14 +128,14 @@ def main():
         samples.append(sample_dict)
 
     # save long version of the table; one line per R1 R2 pair
-    with open('samples.fastq-long.tsv', 'w') as f:
+    with open('samples.fastq.tsv', 'w') as f:
         writer = csv.DictWriter(f, delimiter= '\t', fieldnames=['Sample', 'R1', 'R2'])
         writer.writeheader()
         for item in samples:
             writer.writerow(item)
 
     # save a JSON
-    with open('samples.fastq-long.json', 'w') as f:
+    with open('samples.fastq.json', 'w') as f:
         json.dump(samples, f, sort_keys = True, indent = 4)
 
 

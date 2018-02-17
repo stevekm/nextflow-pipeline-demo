@@ -1,0 +1,13 @@
+Sample	R1	R2
+HapMap-B17-1267	example-data/HapMap-B17-1267_S8_L001_R1_001.fastq.gz	example-data/HapMap-B17-1267_S8_L001_R2_001.fastq.gz
+HapMap-B17-1267	example-data/HapMap-B17-1267_S8_L002_R1_001.fastq.gz	example-data/HapMap-B17-1267_S8_L002_R2_001.fastq.gz
+HapMap-B17-1267	example-data/HapMap-B17-1267_S8_L003_R1_001.fastq.gz	example-data/HapMap-B17-1267_S8_L003_R2_001.fastq.gz
+HapMap-B17-1267	example-data/HapMap-B17-1267_S8_L004_R1_001.fastq.gz	example-data/HapMap-B17-1267_S8_L004_R2_001.fastq.gz
+NTC-H2O	example-data/NTC-H2O_S1_L001_R1_001.fastq.gz	example-data/NTC-H2O_S1_L001_R2_001.fastq.gz
+NTC-H2O	example-data/NTC-H2O_S1_L002_R1_001.fastq.gz	example-data/NTC-H2O_S1_L002_R2_001.fastq.gz
+NTC-H2O	example-data/NTC-H2O_S1_L003_R1_001.fastq.gz	example-data/NTC-H2O_S1_L003_R2_001.fastq.gz
+NTC-H2O	example-data/NTC-H2O_S1_L004_R1_001.fastq.gz	example-data/NTC-H2O_S1_L004_R2_001.fastq.gz
+SeraCare-1to1-Positive	example-data/SeraCare-1to1-Positive_S2_L001_R1_001.fastq.gz	example-data/SeraCare-1to1-Positive_S2_L001_R2_001.fastq.gz
+SeraCare-1to1-Positive	example-data/SeraCare-1to1-Positive_S2_L002_R1_001.fastq.gz	example-data/SeraCare-1to1-Positive_S2_L002_R2_001.fastq.gz
+SeraCare-1to1-Positive	example-data/SeraCare-1to1-Positive_S2_L003_R1_001.fastq.gz	example-data/SeraCare-1to1-Positive_S2_L003_R2_001.fastq.gz
+SeraCare-1to1-Positive	example-data/SeraCare-1to1-Positive_S2_L004_R1_001.fastq.gz	example-data/SeraCare-1to1-Positive_S2_L004_R2_001.fastq.gz

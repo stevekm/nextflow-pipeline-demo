@@ -1,0 +1,62 @@
+[
+    {
+        "R1": "example-data/HapMap-B17-1267_S8_L001_R1_001.fastq.gz", 
+        "R2": "example-data/HapMap-B17-1267_S8_L001_R2_001.fastq.gz", 
+        "Sample": "HapMap-B17-1267"
+    }, 
+    {
+        "R1": "example-data/HapMap-B17-1267_S8_L002_R1_001.fastq.gz", 
+        "R2": "example-data/HapMap-B17-1267_S8_L002_R2_001.fastq.gz", 
+        "Sample": "HapMap-B17-1267"
+    }, 
+    {
+        "R1": "example-data/HapMap-B17-1267_S8_L003_R1_001.fastq.gz", 
+        "R2": "example-data/HapMap-B17-1267_S8_L003_R2_001.fastq.gz", 
+        "Sample": "HapMap-B17-1267"
+    }, 
+    {
+        "R1": "example-data/HapMap-B17-1267_S8_L004_R1_001.fastq.gz", 
+        "R2": "example-data/HapMap-B17-1267_S8_L004_R2_001.fastq.gz", 
+        "Sample": "HapMap-B17-1267"
+    }, 
+    {
+        "R1": "example-data/NTC-H2O_S1_L001_R1_001.fastq.gz", 
+        "R2": "example-data/NTC-H2O_S1_L001_R2_001.fastq.gz", 
+        "Sample": "NTC-H2O"
+    }, 
+    {
+        "R1": "example-data/NTC-H2O_S1_L002_R1_001.fastq.gz", 
+        "R2": "example-data/NTC-H2O_S1_L002_R2_001.fastq.gz", 
+        "Sample": "NTC-H2O"
+    }, 
+    {
+        "R1": "example-data/NTC-H2O_S1_L003_R1_001.fastq.gz", 
+        "R2": "example-data/NTC-H2O_S1_L003_R2_001.fastq.gz", 
+        "Sample": "NTC-H2O"
+    }, 
+    {
+        "R1": "example-data/NTC-H2O_S1_L004_R1_001.fastq.gz", 
+        "R2": "example-data/NTC-H2O_S1_L004_R2_001.fastq.gz", 
+        "Sample": "NTC-H2O"
+    }, 
+    {
+        "R1": "example-data/SeraCare-1to1-Positive_S2_L001_R1_001.fastq.gz", 
+        "R2": "example-data/SeraCare-1to1-Positive_S2_L001_R2_001.fastq.gz", 
+        "Sample": "SeraCare-1to1-Positive"
+    }, 
+    {
+        "R1": "example-data/SeraCare-1to1-Positive_S2_L002_R1_001.fastq.gz", 
+        "R2": "example-data/SeraCare-1to1-Positive_S2_L002_R2_001.fastq.gz", 
+        "Sample": "SeraCare-1to1-Positive"
+    }, 
+    {
+        "R1": "example-data/SeraCare-1to1-Positive_S2_L003_R1_001.fastq.gz", 
+        "R2": "example-data/SeraCare-1to1-Positive_S2_L003_R2_001.fastq.gz", 
+        "Sample": "SeraCare-1to1-Positive"
+    }, 
+    {
+        "R1": "example-data/SeraCare-1to1-Positive_S2_L004_R1_001.fastq.gz", 
+        "R2": "example-data/SeraCare-1to1-Positive_S2_L004_R2_001.fastq.gz", 
+        "Sample": "SeraCare-1to1-Positive"
+    }
+]
