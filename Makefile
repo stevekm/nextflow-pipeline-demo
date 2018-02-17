@@ -39,7 +39,7 @@ expr: install
 	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome-pairs.txt || :
 
 # entire pipeline
-ex-all: pre ex exp
+run: pre ex exp
 
 
 # ~~~~~ CLEANUP ~~~~~ #
@@ -53,7 +53,7 @@ clean-timelines:
 	rm -f *.html
 
 clean-reports:
-	rm -f *.html
+	rm -f *.html nextflow.html*
 
 clean-flowcharts:
 	rm -f *.png
@@ -66,13 +66,14 @@ clean-work:
 
 clean: clean-logs clean-traces clean-timelines clean-reports clean-flowcharts
 
-clean-all: clean clean-output clean-work
-
-clean-wes: clean clean-work
+clean-wes:
 	[ -d wes_output ] && mv wes_output wes_outputold && rm -rf wes_outputold &
 	[ -d output-exomes ] && mv output-exomes output-exomesold && rm -rf output-exomesold &
+	[ -d output-preprocessing ] && mv output-preprocessing output-preprocessingold && rm -rf output-preprocessingold &
 
-
+clean-all: clean clean-output clean-work clean-wes
+	[ -d .nextflow ] && mv .nextflow .nextflowold && rm -rf .nextflowold &
+	rm -f .nextflow.log
 
 # ~~~~~ SETUP ~~~~~ #
 # REFERENCE FILES
