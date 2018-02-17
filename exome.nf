@@ -1,3 +1,5 @@
+// per-sample exome analysis
+
 // read samples from fastq raw sheet, group R1 and R2 files per sample
 Channel.fromPath( file(params.fastq_raw_sheet) )
         .splitCsv()

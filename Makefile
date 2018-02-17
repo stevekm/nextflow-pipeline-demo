@@ -8,59 +8,84 @@ none:
 
 install: ./nextflow
 
-run: install
-	./nextflow run pipeline.nf
+# preprocessing pipeline
+pre:  install
+	./nextflow run preprocessing.nf -with-report "nextflow-preprocessing.html" -with-trace -with-timeline "timeline-preprocessing.html" -with-dag flowchart-preprocessing.png && \
+	[ -f "trace.txt" ] && /bin/mv trace.txt trace-preprocessing.txt || :
 
-resume: install
-	./nextflow run pipeline.nf -resume
+prer: install
+	./nextflow run preprocessing.nf -resume -with-report "nextflow-preprocessing.html" -with-trace -with-timeline "timeline-preprocessing.html" -with-dag flowchart-preprocessing.png && \
+	[ -f "trace.txt" ] && /bin/mv trace.txt trace-preprocessing.txt || :
 
-annot: install
-	./nextflow run annotate.nf
+# exomes pipeline
+ex: install
+	./nextflow run exome.nf -with-report "nextflow-exome.html" -with-trace -with-timeline "timeline-exome.html" -with-dag flowchart-exome.png && \
+	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome.txt || :
+
+exr: install
+	./nextflow run exome.nf -resume -with-report "nextflow-exome.html" -with-trace -with-timeline "timeline-exome.html" -with-dag flowchart-exome.png && \
+	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome.txt || :
+
+# exome-pairs pipeline
+exp: install
+	./nextflow run exome-pairs.nf -with-report "nextflow-exome-pairs.html" -with-trace -with-timeline "timeline-exome-pairs.html" -with-dag flowchart-exome-pairs.png && \
+	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome-pairs.txt || :
+
+expr: install
+	./nextflow run exome-pairs.nf -resume -with-report "nextflow-exome-pairs.html" -with-trace -with-timeline "timeline-exome-pairs.html" -with-dag flowchart-exome-pairs.png && \
+	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome-pairs.txt || :
+
+# entire pipeline
+ex-all: pre ex exp
 
 
-samples.fastq-raw.csv:
-	./gather-fastqs.pl example-data/
-
-wes: install samples.fastq-raw.csv
-	./nextflow run wes.nf -with-report "nextflow-wes.html" -with-trace -with-timeline "timeline-wes.html" -with-dag flowchart-wes.png && \
-	[ -f "trace.txt" ] && /bin/mv trace.txt trace-wes.txt || :
-
-wes-r: install samples.fastq-raw.csv
-	./nextflow run wes.nf -with-report "nextflow-wes.html" -with-trace -with-timeline "timeline-wes.html" -with-dag flowchart-wes.png -resume && \
-	[ -f "trace.txt" ] && /bin/mv trace.txt trace-wes.txt || :
-
-wes-pairs:
-	./nextflow run wes.nf -with-report "nextflow-wes-pairs.html" -with-trace -with-timeline "timeline-wes-pairs.html" -with-dag flowchart-wes-pairs.png && \
-	[ -f "trace.txt" ] && /bin/mv trace.txt trace-wes-pairs.txt || :
-
-wes-all: wes wes-pairs
+#
+# run: install
+# 	./nextflow run pipeline.nf
+#
+# resume: install
+# 	./nextflow run pipeline.nf -resume
+#
+# annot: install
+# 	./nextflow run annotate.nf
+#
+#
+# samples.fastq-raw.csv:
+# 	./gather-fastqs.pl example-data/
+#
+# wes: install samples.fastq-raw.csv
+# 	./nextflow run wes.nf -with-report "nextflow-wes.html" -with-trace -with-timeline "timeline-wes.html" -with-dag flowchart-wes.png && \
+# 	[ -f "trace.txt" ] && /bin/mv trace.txt trace-wes.txt || :
+#
+# wes-r: install samples.fastq-raw.csv
+# 	./nextflow run wes.nf -with-report "nextflow-wes.html" -with-trace -with-timeline "timeline-wes.html" -with-dag flowchart-wes.png -resume && \
+# 	[ -f "trace.txt" ] && /bin/mv trace.txt trace-wes.txt || :
+#
+# wes-pairs:
+# 	./nextflow run wes.nf -with-report "nextflow-wes-pairs.html" -with-trace -with-timeline "timeline-wes-pairs.html" -with-dag flowchart-wes-pairs.png && \
+# 	[ -f "trace.txt" ] && /bin/mv trace.txt trace-wes-pairs.txt || :
+#
+# wes-all: wes wes-pairs
 
 
 # ~~~~~ CLEANUP ~~~~~ #
 clean-traces:
 	rm -f trace.txt.*
-	rm -f trace-wes-pairs.txt
-	rm -f trace-wes.txt
+	rm -f trace-wes-pairs.txt trace-wes.txt trace-exome-pairs.txt trace-exome.txt trace-preprocessing.txt
+
 
 clean-logs:
 	rm -f .nextflow.log.*
 
 clean-timelines:
-	rm -f timeline.html.*
-	rm -f timeline-wes-pairs.html.*
-	rm -f timeline-wes.html.*
+	rm -f timeline.html.* timeline-wes-pairs.html.* timeline-wes.html.*
+	rm -f timeline-exome-pairs.html timeline-exome.html timeline-preprocessing.html
 
 clean-reports:
-	rm -f report.html.*
-	rm -f nextflow-report.html.*
-	rm -f nextflow.html.*
-	rm -f nextflow-wes.html.*
-	rm -f nextflow-wes-pairs.html.*
+	rm -f report.html.* nextflow-report.html.* nextflow.html.* nextflow-wes.html.* nextflow-wes-pairs.html.*
 
 clean-flowcharts:
-	rm -f flowchart.png.*
-	rm -f flowchart-wes-pairs.png.*
-	rm -f flowchart-wes.png.*
+	rm -f flowchart.png.* flowchart-wes-pairs.png.* flowchart-wes.png.*
 
 clean-output:
 	[ -d output ] && mv output oldoutput && rm -rf oldoutput &
@@ -79,8 +104,6 @@ clean-wes: clean clean-work
 
 
 # ~~~~~ SETUP ~~~~~ #
-# DOCKER
-
 # REFERENCE FILES
 HG19_GENOME_FA_MD5:=c1ddcc5db31b657d167bea6d9ff354f9
 
