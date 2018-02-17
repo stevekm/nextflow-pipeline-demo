@@ -6,7 +6,7 @@ Channel.fromPath( file(params.targets_bed) ).set{ targets_bed }
 
 // reference hg19 fasta file
 Channel.fromPath( file(params.targets_bed) ).set{ targets_bed }
-Channel.fromPath( file(params.ref_fa) ).set{ ref_fa }
+Channel.fromPath( file(params.ref_fa) ).set{ ref_fasta }
 Channel.fromPath( file(params.ref_fai) ).set{ ref_fai }
 Channel.fromPath( file(params.ref_dict) ).set{ ref_dict }
 Channel.fromPath( file(params.ref_chrom_sizes) ).set{ ref_chrom_sizes }
@@ -169,4 +169,160 @@ process sambamba_dedup_flagstat {
     "${params.sambamba_bin}" flagstat "${sample_bam}" > "${sample_ID}.dd.flagstat.txt"
     """
 
+}
+
+
+
+
+
+
+// setup downstream Channels
+samples_dd_bam.combine(ref_fasta)
+            .combine(ref_fai)
+            .combine(ref_dict)
+            .tap { samples_qc_target_reads_gatk }
+            .combine(targets_bed)
+            .into { samples_qc_target_reads_gatk_pad500;
+                    samples_qc_target_reads_gatk_pad100;
+                    samples_qc_target_reads_gatk_bed
+                }
+
+
+
+
+
+
+
+process qc_target_reads_gatk_genome {
+    tag { "${sample_ID}" }
+    publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+    clusterOptions '-pe threaded 1-8'
+
+    input:
+    set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_qc_target_reads_gatk
+
+    output:
+    file "${sample_ID}.genome.sample_statistics"
+    file "${sample_ID}.genome.sample_summary"
+
+    script:
+    """
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage \
+    -dt NONE \
+    -rf BadCigar \
+    -nt \${NSLOTS:-1} \
+    --logging_level ERROR \
+    --omitIntervalStatistics \
+    --omitLocusTable \
+    --omitDepthOutputAtEachBase \
+    -ct 10 -ct 100 -mbq 20 -mmq 20 \
+    --reference_sequence "${ref_fasta}" \
+    --input_file "${sample_bam}" \
+    --outputFormat csv \
+    --out "${sample_ID}.genome"
+    """
+}
+
+
+process qc_target_reads_gatk_pad500 {
+    tag { "${sample_ID}" }
+    publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+    clusterOptions '-pe threaded 1-8'
+
+    input:
+    set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_qc_target_reads_gatk_pad500
+
+    output:
+    file "${sample_ID}.pad500.sample_statistics"
+    file "${sample_ID}.pad500.sample_summary"
+
+    script:
+    """
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage \
+    -dt NONE \
+    -rf BadCigar \
+    -nt \${NSLOTS:-1} \
+    --logging_level ERROR \
+    --omitIntervalStatistics \
+    --omitLocusTable \
+    --omitDepthOutputAtEachBase \
+    -ct 10 -ct 100 -mbq 20 -mmq 20 \
+    --reference_sequence "${ref_fasta}" \
+    --intervals "${targets_bed_file}" \
+    --interval_padding 500 \
+    --input_file "${sample_bam}" \
+    --outputFormat csv \
+    --out "${sample_ID}.pad500"
+    """
+}
+
+process qc_target_reads_gatk_pad100 {
+    tag { "${sample_ID}" }
+    publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+    clusterOptions '-pe threaded 1-8'
+
+    input:
+    set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_qc_target_reads_gatk_pad100
+
+    output:
+    file "${sample_ID}.pad100.sample_statistics"
+    file "${sample_ID}.pad100.sample_summary"
+
+    script:
+    """
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage \
+    -dt NONE \
+    -rf BadCigar \
+    -nt \${NSLOTS:-1} \
+    --logging_level ERROR \
+    --omitIntervalStatistics \
+    --omitLocusTable \
+    --omitDepthOutputAtEachBase \
+    -ct 10 -ct 100 -mbq 20 -mmq 20 \
+    --reference_sequence "${ref_fasta}" \
+    --intervals "${targets_bed_file}" \
+    --interval_padding 100 \
+    --input_file "${sample_bam}" \
+    --outputFormat csv \
+    --out "${sample_ID}.pad100"
+    """
+}
+
+process qc_target_reads_gatk_bed {
+    tag { "${sample_ID}" }
+    publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+    clusterOptions '-pe threaded 1-8'
+
+    input:
+    set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_qc_target_reads_gatk_bed
+
+    output:
+    file "${sample_ID}.bed.sample_statistics"
+    file "${sample_ID}.bed.sample_summary"
+
+    script:
+    """
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage \
+    -dt NONE \
+    -rf BadCigar \
+    -nt \${NSLOTS:-1} \
+    --logging_level ERROR \
+    --omitIntervalStatistics \
+    --omitLocusTable \
+    --omitDepthOutputAtEachBase \
+    -ct 10 -ct 100 -mbq 20 -mmq 20 \
+    --reference_sequence "${ref_fasta}" \
+    --intervals "${targets_bed_file}" \
+    --input_file "${sample_bam}" \
+    --outputFormat csv \
+    --out "${sample_ID}.bed"
+    """
 }
