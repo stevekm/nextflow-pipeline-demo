@@ -317,244 +317,244 @@ process fastq_pairs_print {
 //     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage -dt NONE -rf BadCigar -nt \${NSLOTS:-1} --logging_level ERROR --omitIntervalStatistics --omitLocusTable --omitDepthOutputAtEachBase -ct 10 -ct 100 -mbq 20 -mmq 20 --reference_sequence "${ref_fasta}" --intervals "${targets_bed_file}" --input_file "${sample_bam}" --outputFormat csv --out "${sample_ID}.bed"
 //     """
 // }
-
-process bam_ra_rc_gatk {
-    // re-alignment and recalibration with GATK
-    // https://software.broadinstitute.org/gatk/documentation/tooldocs/3.8-0/org_broadinstitute_gatk_tools_walkers_bqsr_BaseRecalibrator.php
-    // https://software.broadinstitute.org/gatk/documentation/tooldocs/3.8-0/org_broadinstitute_gatk_tools_walkers_bqsr_AnalyzeCovariates.php
-    tag { "${sample_ID}" }
-    publishDir "${params.wes_output_dir}/${params.bam_ra_rc_gatk_dir}", mode: 'copy', overwrite: true
-    beforeScript "${params.beforeScript_str}"
-    afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-8'
-
-    input:
-    set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_bam6.combine(targets_bed4).combine(ref_fasta5).combine(ref_fai5).combine(ref_dict5)
-
-    output:
-    set val(sample_ID), file("${sample_ID}.dd.ra.rc.bam") into samples_dd_ra_rc_bam, samples_dd_ra_rc_bam2, samples_dd_ra_rc_bam3, samples_dd_ra_rc_bam4
-    file "${sample_ID}.intervals"
-    file "${sample_ID}.table1.txt"
-    file "${sample_ID}.table2.txt"
-    file "${sample_ID}.csv"
-    file "${sample_ID}.pdf"
-
-    script:
-    """
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T RealignerTargetCreator \
-    -dt NONE \
-    --logging_level ERROR \
-    -nt \${NSLOTS:-1} \
-    --reference_sequence "${ref_fasta}" \
-    -known "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
-    -known "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
-    --intervals "${targets_bed_file}" \
-    --interval_padding 10 \
-    --input_file "${sample_bam}" \
-    --out "${sample_ID}.intervals"
-
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T IndelRealigner \
-    -dt NONE \
-    --logging_level ERROR \
-    --reference_sequence "${ref_fasta}" \
-    --maxReadsForRealignment 50000 \
-    -known "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
-    -known "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
-    -targetIntervals "${sample_ID}.intervals" \
-    --input_file "${sample_bam}" \
-    --out "${sample_ID}.dd.ra.bam"
-
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T BaseRecalibrator \
-    --logging_level ERROR \
-    -nct \${NSLOTS:-1} \
-    -rf BadCigar \
-    --reference_sequence "${ref_fasta}" \
-    -knownSites "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
-    -knownSites "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
-    -knownSites "${params.dbsnp_138_hg19_vcf}" \
-    --intervals "${targets_bed_file}" \
-    --interval_padding 10 \
-    --input_file "${sample_ID}.dd.ra.bam" \
-    --out "${sample_ID}.table1.txt"
-
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T BaseRecalibrator \
-    --logging_level ERROR \
-    -nct \${NSLOTS:-1} \
-    -rf BadCigar \
-    --reference_sequence "${ref_fasta}" \
-    -knownSites "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
-    -knownSites "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
-    -knownSites "${params.dbsnp_138_hg19_vcf}" \
-    --intervals "${targets_bed_file}" \
-    --interval_padding 10 \
-    --input_file "${sample_ID}.dd.ra.bam" \
-    -BQSR "${sample_ID}.table1.txt" \
-    --out "${sample_ID}.table2.txt"
-
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T AnalyzeCovariates \
-    --logging_level ERROR \
-    --reference_sequence "${ref_fasta}" \
-    -before "${sample_ID}.table1.txt" \
-    -after "${sample_ID}.table2.txt" \
-    -csv "${sample_ID}.csv" \
-    -plots "${sample_ID}.pdf"
-
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T PrintReads \
-    --logging_level ERROR \
-    -nct \${NSLOTS:-1} \
-    -rf BadCigar \
-    --reference_sequence "${ref_fasta}" \
-    -BQSR "${sample_ID}.table1.txt" \
-    --input_file "${sample_ID}.dd.ra.bam" \
-    --out "${sample_ID}.dd.ra.rc.bam"
-    """
-
-}
-
-process qc_coverage_gatk {
-    tag { "${sample_ID}" }
-    publishDir "${params.wes_output_dir}/qc_coverage_gatk", mode: 'copy', overwrite: true
-    beforeScript "${params.beforeScript_str}"
-    afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-8'
-
-    input:
-    set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_ra_rc_bam.combine(targets_bed5).combine(ref_fasta6).combine(ref_fai6).combine(ref_dict6)
-
-    output:
-    file "${sample_ID}.sample_summary"
-    file "${sample_ID}.sample_statistics"
-    file "${sample_ID}.sample_interval_summary"
-    file "${sample_ID}.sample_interval_statistics"
-    file "${sample_ID}.sample_cumulative_coverage_proportions"
-    file "${sample_ID}.sample_cumulative_coverage_counts"
-
-    script:
-    """
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage \
-    -dt NONE \
-    --logging_level ERROR \
-    -rf BadCigar \
-    --reference_sequence "${ref_fasta}" \
-    --intervals "${targets_bed_file}" \
-    --omitDepthOutputAtEachBase \
-    -ct 10 -ct 50 -ct 100 -ct 500 \
-    -mbq 20 -mmq 20 --nBins 999 \
-    --start 1 --stop 1000 \
-    --input_file "${sample_bam}" \
-    --outputFormat csv \
-    --out "${sample_ID}"
-    """
-}
-
-process pad_bed {
-    publishDir "${params.wes_output_dir}/targets", mode: 'copy', overwrite: true
-    beforeScript "${params.beforeScript_str}"
-    afterScript "${params.afterScript_str}"
-    module 'bedtools/2.26.0'
-
-    input:
-    set file(targets_bed_file), file(ref_chrom_sizes) from targets_bed6.combine(ref_chrom_sizes)
-
-    output:
-    file("targets.pad10.bed") into targets_pad_bed
-
-    script:
-    """
-    cat "${targets_bed_file}" | LC_ALL=C sort -k1,1 -k2,2n | bedtools slop -g "${ref_chrom_sizes}" -b 10 | bedtools merge -d 5 > targets.pad10.bed
-    """
-}
-
-process lofreq {
-    tag { "${sample_ID}" }
-    publishDir "${params.wes_output_dir}/vcf_lofreq", mode: 'copy', overwrite: true
-    beforeScript "${params.beforeScript_str}"
-    afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-8'
-    module 'samtools/1.3'
-
-    input:
-    set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai) from samples_dd_ra_rc_bam2.combine(targets_pad_bed).combine(ref_fasta7).combine(ref_fai7)
-
-    output:
-    file("${sample_ID}.vcf")
-    file("${sample_ID}.norm.vcf")
-
-    script:
-    """
-    samtools index "${sample_bam}"
-
-    "${params.lofreq_bin}" call-parallel \
-    --call-indels \
-    --pp-threads \${NSLOTS:-1} \
-    --ref "${ref_fasta}" \
-    --bed "${targets_bed_file}" \
-    --out "${sample_ID}.vcf" \
-    "${sample_bam}"
-
-    bgzip -c "${sample_ID}.vcf" > "${sample_ID}.vcf.bgz"
-
-    bcftools index "${sample_ID}.vcf.bgz"
-
-    bcftools norm \
-    --multiallelics \
-    -both \
-    --output-type v \
-    "${sample_ID}.vcf.bgz" | \
-    bcftools norm \
-    --fasta-ref "${ref_fasta}" \
-    --output-type v - | \
-    bcftools view \
-    --exclude 'DP<5' \
-    --output-type v >  "${sample_ID}.norm.vcf"
-
-    rm -f "${sample_bam}.bai"
-    """
-}
-
-process gatk_hc {
-    tag { "${sample_ID}" }
-    publishDir "${params.wes_output_dir}/vcf_hc", mode: 'copy', overwrite: true
-    beforeScript "${params.beforeScript_str}"
-    afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-8'
-    module 'samtools/1.3'
-
-    input:
-    set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_ra_rc_bam3.combine(targets_bed7).combine(ref_fasta8).combine(ref_fai8).combine(ref_dict8)
-
-    output:
-    file("${sample_ID}.vcf")
-    file("${sample_ID}.norm.vcf")
-
-    script:
-    """
-    samtools index "${sample_bam}"
-
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T HaplotypeCaller \
-    -dt NONE \
-    --logging_level ERROR \
-    -nct \${NSLOTS:-1} \
-    --max_alternate_alleles 3 \
-    --standard_min_confidence_threshold_for_calling 50 \
-    --reference_sequence "${ref_fasta}" \
-    --intervals "${targets_bed_file}" \
-    --interval_padding 10 \
-    --input_file "${sample_bam}" \
-    --out "${sample_ID}.vcf"
-
-    cat "${sample_ID}.vcf" | \
-    bcftools norm \
-    --multiallelics \
-    -both \
-    --output-type v - | \
-    bcftools norm \
-    --fasta-ref "${ref_fasta}" \
-    --output-type v - | \
-    bcftools view \
-    --exclude 'DP<5' \
-    --output-type v > "${sample_ID}.norm.vcf"
-
-    rm -f "${sample_bam}.bai"
-    """
-}
+//
+// process bam_ra_rc_gatk {
+//     // re-alignment and recalibration with GATK
+//     // https://software.broadinstitute.org/gatk/documentation/tooldocs/3.8-0/org_broadinstitute_gatk_tools_walkers_bqsr_BaseRecalibrator.php
+//     // https://software.broadinstitute.org/gatk/documentation/tooldocs/3.8-0/org_broadinstitute_gatk_tools_walkers_bqsr_AnalyzeCovariates.php
+//     tag { "${sample_ID}" }
+//     publishDir "${params.wes_output_dir}/${params.bam_ra_rc_gatk_dir}", mode: 'copy', overwrite: true
+//     beforeScript "${params.beforeScript_str}"
+//     afterScript "${params.afterScript_str}"
+//     clusterOptions '-pe threaded 1-8'
+//
+//     input:
+//     set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_bam6.combine(targets_bed4).combine(ref_fasta5).combine(ref_fai5).combine(ref_dict5)
+//
+//     output:
+//     set val(sample_ID), file("${sample_ID}.dd.ra.rc.bam") into samples_dd_ra_rc_bam, samples_dd_ra_rc_bam2, samples_dd_ra_rc_bam3, samples_dd_ra_rc_bam4
+//     file "${sample_ID}.intervals"
+//     file "${sample_ID}.table1.txt"
+//     file "${sample_ID}.table2.txt"
+//     file "${sample_ID}.csv"
+//     file "${sample_ID}.pdf"
+//
+//     script:
+//     """
+//     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T RealignerTargetCreator \
+//     -dt NONE \
+//     --logging_level ERROR \
+//     -nt \${NSLOTS:-1} \
+//     --reference_sequence "${ref_fasta}" \
+//     -known "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
+//     -known "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
+//     --intervals "${targets_bed_file}" \
+//     --interval_padding 10 \
+//     --input_file "${sample_bam}" \
+//     --out "${sample_ID}.intervals"
+//
+//     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T IndelRealigner \
+//     -dt NONE \
+//     --logging_level ERROR \
+//     --reference_sequence "${ref_fasta}" \
+//     --maxReadsForRealignment 50000 \
+//     -known "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
+//     -known "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
+//     -targetIntervals "${sample_ID}.intervals" \
+//     --input_file "${sample_bam}" \
+//     --out "${sample_ID}.dd.ra.bam"
+//
+//     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T BaseRecalibrator \
+//     --logging_level ERROR \
+//     -nct \${NSLOTS:-1} \
+//     -rf BadCigar \
+//     --reference_sequence "${ref_fasta}" \
+//     -knownSites "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
+//     -knownSites "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
+//     -knownSites "${params.dbsnp_138_hg19_vcf}" \
+//     --intervals "${targets_bed_file}" \
+//     --interval_padding 10 \
+//     --input_file "${sample_ID}.dd.ra.bam" \
+//     --out "${sample_ID}.table1.txt"
+//
+//     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T BaseRecalibrator \
+//     --logging_level ERROR \
+//     -nct \${NSLOTS:-1} \
+//     -rf BadCigar \
+//     --reference_sequence "${ref_fasta}" \
+//     -knownSites "${params.gatk_1000G_phase1_indels_hg19_vcf}" \
+//     -knownSites "${params.mills_and_1000G_gold_standard_indels_hg19_vcf}" \
+//     -knownSites "${params.dbsnp_138_hg19_vcf}" \
+//     --intervals "${targets_bed_file}" \
+//     --interval_padding 10 \
+//     --input_file "${sample_ID}.dd.ra.bam" \
+//     -BQSR "${sample_ID}.table1.txt" \
+//     --out "${sample_ID}.table2.txt"
+//
+//     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T AnalyzeCovariates \
+//     --logging_level ERROR \
+//     --reference_sequence "${ref_fasta}" \
+//     -before "${sample_ID}.table1.txt" \
+//     -after "${sample_ID}.table2.txt" \
+//     -csv "${sample_ID}.csv" \
+//     -plots "${sample_ID}.pdf"
+//
+//     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T PrintReads \
+//     --logging_level ERROR \
+//     -nct \${NSLOTS:-1} \
+//     -rf BadCigar \
+//     --reference_sequence "${ref_fasta}" \
+//     -BQSR "${sample_ID}.table1.txt" \
+//     --input_file "${sample_ID}.dd.ra.bam" \
+//     --out "${sample_ID}.dd.ra.rc.bam"
+//     """
+//
+// }
+//
+// process qc_coverage_gatk {
+//     tag { "${sample_ID}" }
+//     publishDir "${params.wes_output_dir}/qc_coverage_gatk", mode: 'copy', overwrite: true
+//     beforeScript "${params.beforeScript_str}"
+//     afterScript "${params.afterScript_str}"
+//     clusterOptions '-pe threaded 1-8'
+//
+//     input:
+//     set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_ra_rc_bam.combine(targets_bed5).combine(ref_fasta6).combine(ref_fai6).combine(ref_dict6)
+//
+//     output:
+//     file "${sample_ID}.sample_summary"
+//     file "${sample_ID}.sample_statistics"
+//     file "${sample_ID}.sample_interval_summary"
+//     file "${sample_ID}.sample_interval_statistics"
+//     file "${sample_ID}.sample_cumulative_coverage_proportions"
+//     file "${sample_ID}.sample_cumulative_coverage_counts"
+//
+//     script:
+//     """
+//     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T DepthOfCoverage \
+//     -dt NONE \
+//     --logging_level ERROR \
+//     -rf BadCigar \
+//     --reference_sequence "${ref_fasta}" \
+//     --intervals "${targets_bed_file}" \
+//     --omitDepthOutputAtEachBase \
+//     -ct 10 -ct 50 -ct 100 -ct 500 \
+//     -mbq 20 -mmq 20 --nBins 999 \
+//     --start 1 --stop 1000 \
+//     --input_file "${sample_bam}" \
+//     --outputFormat csv \
+//     --out "${sample_ID}"
+//     """
+// }
+//
+// process pad_bed {
+//     publishDir "${params.wes_output_dir}/targets", mode: 'copy', overwrite: true
+//     beforeScript "${params.beforeScript_str}"
+//     afterScript "${params.afterScript_str}"
+//     module 'bedtools/2.26.0'
+//
+//     input:
+//     set file(targets_bed_file), file(ref_chrom_sizes) from targets_bed6.combine(ref_chrom_sizes)
+//
+//     output:
+//     file("targets.pad10.bed") into targets_pad_bed
+//
+//     script:
+//     """
+//     cat "${targets_bed_file}" | LC_ALL=C sort -k1,1 -k2,2n | bedtools slop -g "${ref_chrom_sizes}" -b 10 | bedtools merge -d 5 > targets.pad10.bed
+//     """
+// }
+//
+// process lofreq {
+//     tag { "${sample_ID}" }
+//     publishDir "${params.wes_output_dir}/vcf_lofreq", mode: 'copy', overwrite: true
+//     beforeScript "${params.beforeScript_str}"
+//     afterScript "${params.afterScript_str}"
+//     clusterOptions '-pe threaded 1-8'
+//     module 'samtools/1.3'
+//
+//     input:
+//     set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai) from samples_dd_ra_rc_bam2.combine(targets_pad_bed).combine(ref_fasta7).combine(ref_fai7)
+//
+//     output:
+//     file("${sample_ID}.vcf")
+//     file("${sample_ID}.norm.vcf")
+//
+//     script:
+//     """
+//     samtools index "${sample_bam}"
+//
+//     "${params.lofreq_bin}" call-parallel \
+//     --call-indels \
+//     --pp-threads \${NSLOTS:-1} \
+//     --ref "${ref_fasta}" \
+//     --bed "${targets_bed_file}" \
+//     --out "${sample_ID}.vcf" \
+//     "${sample_bam}"
+//
+//     bgzip -c "${sample_ID}.vcf" > "${sample_ID}.vcf.bgz"
+//
+//     bcftools index "${sample_ID}.vcf.bgz"
+//
+//     bcftools norm \
+//     --multiallelics \
+//     -both \
+//     --output-type v \
+//     "${sample_ID}.vcf.bgz" | \
+//     bcftools norm \
+//     --fasta-ref "${ref_fasta}" \
+//     --output-type v - | \
+//     bcftools view \
+//     --exclude 'DP<5' \
+//     --output-type v >  "${sample_ID}.norm.vcf"
+//
+//     rm -f "${sample_bam}.bai"
+//     """
+// }
+//
+// process gatk_hc {
+//     tag { "${sample_ID}" }
+//     publishDir "${params.wes_output_dir}/vcf_hc", mode: 'copy', overwrite: true
+//     beforeScript "${params.beforeScript_str}"
+//     afterScript "${params.afterScript_str}"
+//     clusterOptions '-pe threaded 1-8'
+//     module 'samtools/1.3'
+//
+//     input:
+//     set val(sample_ID), file(sample_bam), file(targets_bed_file), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_ra_rc_bam3.combine(targets_bed7).combine(ref_fasta8).combine(ref_fai8).combine(ref_dict8)
+//
+//     output:
+//     file("${sample_ID}.vcf")
+//     file("${sample_ID}.norm.vcf")
+//
+//     script:
+//     """
+//     samtools index "${sample_bam}"
+//
+//     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T HaplotypeCaller \
+//     -dt NONE \
+//     --logging_level ERROR \
+//     -nct \${NSLOTS:-1} \
+//     --max_alternate_alleles 3 \
+//     --standard_min_confidence_threshold_for_calling 50 \
+//     --reference_sequence "${ref_fasta}" \
+//     --intervals "${targets_bed_file}" \
+//     --interval_padding 10 \
+//     --input_file "${sample_bam}" \
+//     --out "${sample_ID}.vcf"
+//
+//     cat "${sample_ID}.vcf" | \
+//     bcftools norm \
+//     --multiallelics \
+//     -both \
+//     --output-type v - | \
+//     bcftools norm \
+//     --fasta-ref "${ref_fasta}" \
+//     --output-type v - | \
+//     bcftools view \
+//     --exclude 'DP<5' \
+//     --output-type v > "${sample_ID}.norm.vcf"
+//
+//     rm -f "${sample_bam}.bai"
+//     """
+// }
