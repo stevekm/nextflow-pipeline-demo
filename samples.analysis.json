@@ -1,6 +1,6 @@
 [
     {
-        "Normal": null, 
+        "Normal": "NA", 
         "R1": [
             "example-data/HapMap-B17-1267_S8_L001_R1_001.fastq.gz", 
             "example-data/HapMap-B17-1267_S8_L002_R1_001.fastq.gz", 
@@ -17,7 +17,7 @@
         "Tumor": "HapMap-B17-1267"
     }, 
     {
-        "Normal": null, 
+        "Normal": "NA", 
         "R1": [
             "example-data/SeraCare-1to1-Positive_S2_L001_R1_001.fastq.gz", 
             "example-data/SeraCare-1to1-Positive_S2_L002_R1_001.fastq.gz", 
@@ -34,7 +34,7 @@
         "Tumor": "SeraCare-1to1-Positive"
     }, 
     {
-        "Normal": null, 
+        "Normal": "NA", 
         "R1": [
             "example-data/NTC-H2O_S1_L001_R1_001.fastq.gz", 
             "example-data/NTC-H2O_S1_L002_R1_001.fastq.gz", 

@@ -14,6 +14,14 @@ Example usage:
 
     ./gather-fastqs2.py example-data example-data example-data
 
+Output
+------
+Files output by this script:
+
+    - ``samples.fastq.tsv``: one line per R1 R2 fastq file pair
+    - ``samples.fastq.json``: one entry per R1 R2 fastq file pair
+    - ``samples.analysis.tsv``: one line per sample with R1 R2 file pairs and metadata
+    - ``samples.analysis.json``: one entry per sample with R1 R2 file pairs and metadata
 
 Notes
 ------
@@ -35,77 +43,47 @@ Only file names as described below are supported:
     	▶ 	R1—The read. In this example, R1 means Read 1. For a paired-end run, there is at least one file with R2 in the file name for Read 2. When generated, index reads are I1 or I2.
     	▶ 	001—The last segment is always 001.
 """
-
 import os
 import sys
 from bin import find
+from bin import collapse
 import re
 import csv
 import json
-
+import argparse
 
 # ~~~~~ FUNCTIONS ~~~~~ #
-def collapse(dicts, collapse_key):
+def main(search_dirs, output_prefix = None):
     """
-    Collapses a list of dicts based on a given key
+    Main control function for the script
 
     Parameters
     ----------
-    dicts: list
-        a list of dicts that are assumed to have common keys
-    collapse_key: str
-        dict key to collapse on
-
-    Returns
-    -------
-    list
-        a list of dicts
-
-    Examples
-    --------
-    Example usage
-
-        x = [{'ID': 'foo', 'File1': 'foo-1-1.txt', 'File2': 'foo-1-2.txt'},
-        {'ID': 'foo', 'File1': 'foo-2-1.txt', 'File2': 'foo-2-2.txt'},
-        {'ID': 'foo', 'File1': 'foo-3-1.txt', 'File2': 'foo-3-2.txt'},
-        {'ID': 'bar', 'File1': 'bar-1-1.txt', 'File2': 'bar-1-2.txt'},
-        {'ID': 'bar', 'File1': 'bar-2-1.txt', 'File2': 'bar-2-2.txt'},
-        {'ID': 'bar', 'File1': 'bar-3-1.txt', 'File2': 'bar-3-2.txt'}]
-        collapse(x, 'ID')
-
-        # {'File2': ['foo-1-2.txt', 'foo-2-2.txt', 'foo-3-2.txt'], 'File1': ['foo-1-1.txt', 'foo-2-1.txt', 'foo-3-1.txt'], 'ID': 'foo'}
-        # {'File2': ['bar-1-2.txt', 'bar-2-2.txt', 'bar-3-2.txt'], 'File1': ['bar-1-1.txt', 'bar-2-1.txt', 'bar-3-1.txt'], 'ID': 'bar'}
+    search_dirs: list
+        list of paths to directories to use
     """
-    ids = list(set([i[collapse_key] for i in dicts])) # unique values from all dicts for the given key
-    keys = set([k for k in i.keys() for i in dicts]) # all keys in all dicts
-    collapsed_list = [] # list to hold output dicts
-    for i in ids:
-        y = {collapse_key: i} # retain value of collapsed field
-        for k in keys :
-            if k != collapse_key: # add the rest of the keys
-                if k not in y.keys():
-                    y.update({k: []}) # initialize them as lists for appending
-                for z in dicts: # iterate over the original list of dicts again
-                    if z[collapse_key] == i: # only the entries that match the selected collapse value
-                        y[k].append(z[k]) # append value to the list
-        collapsed_list.append(y) # add the collapsed dict to the list
-    return(collapsed_list)
-
-
-def main():
-    """
-    Main control function for the script
-    """
-    # get script args
-    search_dirs = sys.argv[1:]
-    fastqs_R1 = []
-    samples = []
-
+    # validate inputs
     if len(search_dirs) < 1:
         print("ERROR: no directories provided")
-        sys.quit()
+        sys.exit(1)
+    for search_dir in search_dirs:
+        if not os.path.isdir(search_dir):
+            print("ERROR: '{0}' is not a directory;".format(search_dir))
+            sys.exit(1)
+
+    # output files
+    samples_fastq_long_tsv = 'samples.fastq.tsv'
+    samples_fastq_long_json = 'samples.fastq.json'
+    samples_analysis_json = 'samples.analysis.json'
+    samples_analysis_tsv = 'samples.analysis.tsv'
+    if output_prefix:
+        samples_fastq_long_tsv = '{0}.{1}'.format(str(output_prefix), samples_fastq_long_tsv)
+        samples_fastq_long_json = '{0}.{1}'.format(str(output_prefix), samples_fastq_long_json)
+        samples_analysis_json = '{0}.{1}'.format(str(output_prefix), samples_analysis_json)
+        samples_analysis_tsv = '{0}.{1}'.format(str(output_prefix), samples_analysis_tsv)
 
     # find the R1 fastq files
+    fastqs_R1 = []
     for search_dir in search_dirs:
         for fastq_R1 in sorted(find.find(search_dir = search_dir,
                                         inclusion_patterns = [ '*_R1_0*.fastq.gz' ],
@@ -113,6 +91,8 @@ def main():
             fastqs_R1.append(fastq_R1)
     fastqs_R1 = list(sorted(set((fastqs_R1))))
 
+    # parse the files into samples
+    samples = []
     for R1_name in fastqs_R1:
         # generate R2 filename
         R2_name = os.path.join(os.path.dirname(R1_name), re.sub(r'(.*)_R1_0([0-9]+\.fastq\.gz)', r'\1_R2_0\2', os.path.basename(R1_name)))
@@ -128,27 +108,26 @@ def main():
         samples.append(sample_dict)
 
     # save long version of the table; one line per R1 R2 pair
-    with open('samples.fastq.tsv', 'w') as f:
+    with open(samples_fastq_long_tsv, 'w') as f:
         writer = csv.DictWriter(f, delimiter= '\t', fieldnames=['Sample', 'R1', 'R2'])
         writer.writeheader()
         for item in samples:
             writer.writerow(item)
 
     # save a JSON
-    with open('samples.fastq.json', 'w') as f:
+    with open(samples_fastq_long_json, 'w') as f:
         json.dump(samples, f, sort_keys = True, indent = 4)
 
-
     # reduce to condensed version; one entry per sample with all R1 and R2
-    samples_collapsed = collapse(dicts = samples, collapse_key = 'Sample')
+    samples_collapsed = collapse.collapse(dicts = samples, collapse_key = 'Sample')
 
     # add some extra metadata
     for sample_dict in samples_collapsed:
         sample_dict['Tumor'] = sample_dict['Sample']
-        sample_dict['Normal'] = None
+        sample_dict['Normal'] = 'NA'
 
     # save a JSON
-    with open('samples.analysis.json', 'w') as f:
+    with open(samples_analysis_json, 'w') as f:
         json.dump(samples_collapsed, f, sort_keys = True, indent = 4)
 
     # prepare dicts for .tsv printing
@@ -162,12 +141,24 @@ def main():
         samples_to_print.append(sample_dict)
 
     # write to file
-    with open('samples.analysis.tsv', 'w') as f:
+    with open(samples_analysis_tsv, 'w') as f:
         writer = csv.DictWriter(f, delimiter= '\t', fieldnames=['Sample', 'Tumor', 'Normal', 'R1', 'R2'])
         writer.writeheader()
         for item in samples_to_print:
             writer.writerow(item)
 
+def parse():
+    """
+    Parses script arguments
+    """
+    # search_dirs = sys.argv[1:]
+    parser = argparse.ArgumentParser(description='This script will generate samplesheets for the analysis based on .fastq.gz files in the supplied directories')
+    parser.add_argument("search_dirs", help="Paths to input samplesheet file", nargs="+")
+    parser.add_argument("-p", default = None, dest = 'output_prefix', metavar = 'prefix', help="Prefix for samplesheet files")
+    args = parser.parse_args()
+    search_dirs = args.search_dirs
+    output_prefix = args.output_prefix
+    main(search_dirs = search_dirs, output_prefix = output_prefix)
 
 if __name__ == '__main__':
-    main()
+    parse()
