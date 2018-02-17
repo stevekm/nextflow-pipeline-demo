@@ -9,3 +9,4 @@ MSI.md
 *.Rproj
 .Rhistory*
 test*
+*.pyc
