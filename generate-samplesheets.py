@@ -53,7 +53,7 @@ import json
 import argparse
 
 # ~~~~~ FUNCTIONS ~~~~~ #
-def main(search_dirs, output_prefix = None):
+def main(search_dirs, output_prefix = None, NA_value = "NA", tumor_colname = 'Tumor', normal_colname = 'Normal', r1_colname = 'R1', r2_colname = 'R2', sample_colname = 'Sample'):
     """
     Main control function for the script
 
@@ -101,15 +101,15 @@ def main(search_dirs, output_prefix = None):
         # extract sample name
         sample_name = re.sub(r'_S[0-9]{1,3}_L00[0-9]_R1.*', '', os.path.basename(R1_name))
         sample_dict = {
-            'Sample': sample_name,
-            'R1': R1_name,
-            'R2': R2_name
+            str(sample_colname): sample_name,
+            str(r1_colname): R1_name,
+            str(r2_colname): R2_name
         }
         samples.append(sample_dict)
 
     # save long version of the table; one line per R1 R2 pair
     with open(samples_fastq_long_tsv, 'w') as f:
-        writer = csv.DictWriter(f, delimiter= '\t', fieldnames=['Sample', 'R1', 'R2'])
+        writer = csv.DictWriter(f, delimiter= '\t', fieldnames=[str(sample_colname), str(r1_colname), str(r2_colname)])
         writer.writeheader()
         for item in samples:
             writer.writerow(item)
@@ -119,12 +119,12 @@ def main(search_dirs, output_prefix = None):
         json.dump(samples, f, sort_keys = True, indent = 4)
 
     # reduce to condensed version; one entry per sample with all R1 and R2
-    samples_collapsed = collapse.collapse(dicts = samples, collapse_key = 'Sample')
+    samples_collapsed = collapse.collapse(dicts = samples, collapse_key = str(sample_colname))
 
     # add some extra metadata
     for sample_dict in samples_collapsed:
-        sample_dict['Tumor'] = sample_dict['Sample']
-        sample_dict['Normal'] = 'NA'
+        sample_dict[str(tumor_colname)] = sample_dict[str(sample_colname)]
+        sample_dict[str(normal_colname)] = str(NA_value)
 
     # save a JSON
     with open(samples_analysis_json, 'w') as f:
@@ -134,15 +134,15 @@ def main(search_dirs, output_prefix = None):
     samples_to_print = []
     for sample_dict in samples_collapsed:
         # convert fastq lists to comma separated
-        new_R1 = ','.join([str(x) for x in sample_dict['R1']])
+        new_R1 = ','.join([str(x) for x in sample_dict[str(r1_colname)]])
         new_R2 = ','.join([str(x) for x in sample_dict['R2']])
-        sample_dict['R1'] = new_R1
-        sample_dict['R2'] = new_R2
+        sample_dict[str(r1_colname)] = new_R1
+        sample_dict[str(r2_colname)] = new_R2
         samples_to_print.append(sample_dict)
 
     # write to file
     with open(samples_analysis_tsv, 'w') as f:
-        writer = csv.DictWriter(f, delimiter= '\t', fieldnames=['Sample', 'Tumor', 'Normal', 'R1', 'R2'])
+        writer = csv.DictWriter(f, delimiter= '\t', fieldnames=[str(sample_colname), str(tumor_colname), str(normal_colname), str(r1_colname), str(r2_colname)])
         writer.writeheader()
         for item in samples_to_print:
             writer.writerow(item)
@@ -155,6 +155,7 @@ def parse():
     parser = argparse.ArgumentParser(description='This script will generate samplesheets for the analysis based on .fastq.gz files in the supplied directories')
     parser.add_argument("search_dirs", help="Paths to input samplesheet file", nargs="+")
     parser.add_argument("-p", default = None, dest = 'output_prefix', metavar = 'prefix', help="Prefix for samplesheet files")
+
     args = parser.parse_args()
     search_dirs = args.search_dirs
     output_prefix = args.output_prefix
