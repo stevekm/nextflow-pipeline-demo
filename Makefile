@@ -42,35 +42,6 @@ expr: install
 ex-all: pre ex exp
 
 
-#
-# run: install
-# 	./nextflow run pipeline.nf
-#
-# resume: install
-# 	./nextflow run pipeline.nf -resume
-#
-# annot: install
-# 	./nextflow run annotate.nf
-#
-#
-# samples.fastq-raw.csv:
-# 	./gather-fastqs.pl example-data/
-#
-# wes: install samples.fastq-raw.csv
-# 	./nextflow run wes.nf -with-report "nextflow-wes.html" -with-trace -with-timeline "timeline-wes.html" -with-dag flowchart-wes.png && \
-# 	[ -f "trace.txt" ] && /bin/mv trace.txt trace-wes.txt || :
-#
-# wes-r: install samples.fastq-raw.csv
-# 	./nextflow run wes.nf -with-report "nextflow-wes.html" -with-trace -with-timeline "timeline-wes.html" -with-dag flowchart-wes.png -resume && \
-# 	[ -f "trace.txt" ] && /bin/mv trace.txt trace-wes.txt || :
-#
-# wes-pairs:
-# 	./nextflow run wes.nf -with-report "nextflow-wes-pairs.html" -with-trace -with-timeline "timeline-wes-pairs.html" -with-dag flowchart-wes-pairs.png && \
-# 	[ -f "trace.txt" ] && /bin/mv trace.txt trace-wes-pairs.txt || :
-#
-# wes-all: wes wes-pairs
-
-
 # ~~~~~ CLEANUP ~~~~~ #
 clean-traces:
 	rm -f trace.txt.* trace*.txt
