@@ -1,6 +1,10 @@
 # Bioinformatics Analysis Pipeline
 
-## Usage
+Analysis pipeline for exome sequencing with tumor-normal paired samples.
+
+__NOTE__: Under development
+
+# Usage
 
 Clone this directory
 
@@ -15,14 +19,22 @@ Install NextFlow
 make install
 ```
 
-Make a symlink to your sns analysis output location
+Set up samplesheets
+
+- for the included example data
 
 ```bash
-ln -fs /path/to/sns_output sns-dir
+make setup
 ```
 
-Run (recommended to run in `screen`)
+- for another directory
 
 ```bash
-make run
+./generate-samplesheets.py path/to/fastq_dir
+```
+
+Run exome pipeline (recommended to run in `screen`)
+
+```bash
+make ex
 ```
