@@ -8,6 +8,9 @@ none:
 
 install: ./nextflow
 
+setup: 
+	./generate-samplesheets.py example-data/ && ./update-samplesheets.py
+
 # preprocessing pipeline
 pre:  install
 	./nextflow run preprocessing.nf -with-report "nextflow-preprocessing.html" -with-trace -with-timeline "timeline-preprocessing.html" -with-dag flowchart-preprocessing.png && \
@@ -70,22 +73,19 @@ ex-all: pre ex exp
 
 # ~~~~~ CLEANUP ~~~~~ #
 clean-traces:
-	rm -f trace.txt.*
-	rm -f trace-wes-pairs.txt trace-wes.txt trace-exome-pairs.txt trace-exome.txt trace-preprocessing.txt
-
+	rm -f trace.txt.* trace*.txt
 
 clean-logs:
 	rm -f .nextflow.log.*
 
 clean-timelines:
-	rm -f timeline.html.* timeline-wes-pairs.html.* timeline-wes.html.*
-	rm -f timeline-exome-pairs.html timeline-exome.html timeline-preprocessing.html
+	rm -f *.html
 
 clean-reports:
-	rm -f report.html.* nextflow-report.html.* nextflow.html.* nextflow-wes.html.* nextflow-wes-pairs.html.*
+	rm -f *.html
 
 clean-flowcharts:
-	rm -f flowchart.png.* flowchart-wes-pairs.png.* flowchart-wes.png.*
+	rm -f *.png
 
 clean-output:
 	[ -d output ] && mv output oldoutput && rm -rf oldoutput &
