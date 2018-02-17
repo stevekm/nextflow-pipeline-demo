@@ -27,7 +27,7 @@ Set up samplesheets
 make setup
 ```
 
-- for another directory
+- OR for another directory
 
 ```bash
 ./generate-samplesheets.py path/to/fastq_dir
@@ -38,3 +38,10 @@ Run exome pipeline (recommended to run in `screen`)
 ```bash
 make ex
 ```
+# Included files
+
+- `example-data`: a directory of sample fastq.gz files
+
+- `targets.bed`, `probes.bed`: exome sequencing probes and targets
+
+- `samples.tumor.normal.csv`: tumor-normal sample pairs sheet
