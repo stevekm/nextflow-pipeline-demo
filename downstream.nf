@@ -150,194 +150,194 @@ process check_samples_mapping {
 
 
 // NEW PIPELINE STEPS
-process deconstructSigs_signatures {
-    tag { sample_ID }
-    // executor "local"
-    validExitStatus 0,11 // allow '11' failure triggered by no variants
-    errorStrategy 'ignore'
-    publishDir "${params.output_dir}/Genomic_Signatures", mode: 'copy', overwrite: true,
-        saveAs: {filename ->
-            if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
-            else if (filename == 'sample_signatures.pdf') "${sample_ID}_signatures.pdf"
-            else if (filename == 'sample_signatures_pie.pdf') "${sample_ID}_signatures_pie.pdf"
-            else filename
-        }
-    input:
-    set val(sample_ID), file(sample_vcf) from sample_variants_deconstructSigs
+// process deconstructSigs_signatures {
+//     tag { sample_ID }
+//     // executor "local"
+//     validExitStatus 0,11 // allow '11' failure triggered by no variants
+//     errorStrategy 'ignore'
+//     publishDir "${params.output_dir}/Genomic_Signatures", mode: 'copy', overwrite: true,
+//         saveAs: {filename ->
+//             if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
+//             else if (filename == 'sample_signatures.pdf') "${sample_ID}_signatures.pdf"
+//             else if (filename == 'sample_signatures_pie.pdf') "${sample_ID}_signatures_pie.pdf"
+//             else filename
+//         }
+//     input:
+//     set val(sample_ID), file(sample_vcf) from sample_variants_deconstructSigs
+//
+//     output:
+//     file "${sample_ID}_signatures.Rds"
+//     file "${sample_ID}_signatures.pdf" into signatures_plots
+//     file "${sample_ID}_signatures_pie.pdf" into signatures_pie_plots
+//
+//     script:
+//     """
+//     pwd
+//     $params.deconstructSigs_make_signatures_script "${sample_ID}" "$sample_vcf"
+//     """
+// }
+//
+//
+// process vaf_distribution_plot {
+//     tag { sample_ID }
+//     // executor "local"
+//     publishDir "${params.output_dir}/VAF-Distribution", mode: 'copy', overwrite: true
+//
+//     input:
+//     set val(sample_ID), file(sample_vcf_annot) from sample_vcf_annot
+//
+//     output:
+//     file "${sample_ID}_vaf_dist.pdf" into vaf_distribution_plots
+//
+//     script:
+//     """
+//     $params.vaf_distribution_plot_script "${sample_ID}" "${sample_vcf_annot}"
+//     """
+//
+// }
 
-    output:
-    file "${sample_ID}_signatures.Rds"
-    file "${sample_ID}_signatures.pdf" into signatures_plots
-    file "${sample_ID}_signatures_pie.pdf" into signatures_pie_plots
 
-    script:
-    """
-    pwd
-    $params.deconstructSigs_make_signatures_script "${sample_ID}" "$sample_vcf"
-    """
-}
-
-
-process vaf_distribution_plot {
-    tag { sample_ID }
-    // executor "local"
-    publishDir "${params.output_dir}/VAF-Distribution", mode: 'copy', overwrite: true
-
-    input:
-    set val(sample_ID), file(sample_vcf_annot) from sample_vcf_annot
-
-    output:
-    file "${sample_ID}_vaf_dist.pdf" into vaf_distribution_plots
-
-    script:
-    """
-    $params.vaf_distribution_plot_script "${sample_ID}" "${sample_vcf_annot}"
-    """
-
-}
-
-
-
-process msisensor {
-    tag { sample_ID }
-    module 'samtools/1.3'
-    clusterOptions '-pe threaded 1-4 -j y -l mem_free=40G'
-    publishDir "${params.output_dir}/MSI", mode: 'copy', overwrite: true,
-        saveAs: {filename ->
-            if (filename == 'msisensor') "${sample_ID}.msisensor"
-            else if (filename == 'msisensor_dis') "${sample_ID}.msisensor_dis"
-            else if (filename == 'msisensor_germline') "${sample_ID}.msisensor_germline"
-            else if (filename == 'msisensor_somatic') "${sample_ID}.msisensor_somatic"
-            else null
-        }
-
-    input:
-    set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), val(sample_normal_ID), file(sample_normal_bam) from sample_pairs_msi
-    file regions_bed from file(params.regions_bed) // name "regions.bed"
-    // set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_msi
-    // file microsatellites from file(params.microsatellites)
-
-    output:
-    file 'msisensor'
-    file 'msisensor_dis'
-    file 'msisensor_germline'
-    file 'msisensor_somatic'
-
-    script:
-    // $params.subset_msisensor_microsatellite_list_script *.bam -m $params.microsatellites -o microsatellites_subset.txt
-    // $params.subset_bam_bed_script *.bam -b $regions_bed -o targets_subset.bed
-    // rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai" targets_subset.bed microsatellites_subset.txt
-    """
-    echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\tTASK_ID:\${TASK_ID:-none}"
-    samtools index "$sample_tumor_bam"
-    samtools index "$sample_normal_bam"
-    $params.msisensor_bin msi -d $params.microsatellites -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
-    rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai"
-    """
-}
+//
+// process msisensor {
+//     tag { sample_ID }
+//     module 'samtools/1.3'
+//     clusterOptions '-pe threaded 1-4 -j y -l mem_free=40G'
+//     publishDir "${params.output_dir}/MSI", mode: 'copy', overwrite: true,
+//         saveAs: {filename ->
+//             if (filename == 'msisensor') "${sample_ID}.msisensor"
+//             else if (filename == 'msisensor_dis') "${sample_ID}.msisensor_dis"
+//             else if (filename == 'msisensor_germline') "${sample_ID}.msisensor_germline"
+//             else if (filename == 'msisensor_somatic') "${sample_ID}.msisensor_somatic"
+//             else null
+//         }
+//
+//     input:
+//     set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), val(sample_normal_ID), file(sample_normal_bam) from sample_pairs_msi
+//     file regions_bed from file(params.regions_bed) // name "regions.bed"
+//     // set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_msi
+//     // file microsatellites from file(params.microsatellites)
+//
+//     output:
+//     file 'msisensor'
+//     file 'msisensor_dis'
+//     file 'msisensor_germline'
+//     file 'msisensor_somatic'
+//
+//     script:
+//     // $params.subset_msisensor_microsatellite_list_script *.bam -m $params.microsatellites -o microsatellites_subset.txt
+//     // $params.subset_bam_bed_script *.bam -b $regions_bed -o targets_subset.bed
+//     // rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai" targets_subset.bed microsatellites_subset.txt
+//     """
+//     echo "USER:\${USER:-none}\tJOB_ID:\${JOB_ID:-none}\tJOB_NAME:\${JOB_NAME:-none}\tHOSTNAME:\${HOSTNAME:-none}\tTASK_ID:\${TASK_ID:-none}"
+//     samtools index "$sample_tumor_bam"
+//     samtools index "$sample_normal_bam"
+//     $params.msisensor_bin msi -d $params.microsatellites -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o msisensor -l 1 -q 1 -b \${NSLOTS:-1}
+//     rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai"
+//     """
+// }
 
 
 // OLD PIPELINE STEPS
-// DELLY2 SNV STEPS
-process delly2_deletions {
-    tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-deletions", mode: 'copy', overwrite: true,
-        saveAs: { filename -> "${sample_ID}_deletions.vcf" }
-
-    input:
-    set val(sample_ID), file(sample_bam) from sample_bam_delly2_deletions
-
-    output:
-    file "deletions.vcf"
-
-    script:
-    """
-    $params.samtools_bin index ${sample_bam}
-    $params.delly2_bin call -t DEL -g ${params.hg19_fa} -o deletions.bcf "${sample_bam}"
-    $params.delly2_bcftools_bin view deletions.bcf > deletions.vcf
-    rm -f ${sample_bam}.bai
-    """
-}
-
-process delly2_duplications {
-    tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-duplications", mode: 'copy', overwrite: true,
-        saveAs: { filename -> "${sample_ID}_duplications.vcf" }
-
-    input:
-    set val(sample_ID), file(sample_bam) from sample_bam_delly2_duplications
-
-    output:
-    file "duplications.vcf"
-
-    script:
-    """
-    $params.samtools_bin index ${sample_bam}
-    $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${sample_bam}"
-    $params.delly2_bcftools_bin view duplications.bcf > duplications.vcf
-    rm -f ${sample_bam}.bai
-    """
-}
-
-process delly2_inversions {
-    tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-inversions", mode: 'copy', overwrite: true,
-        saveAs: { filename -> "${sample_ID}_inversions.vcf" }
-
-    input:
-    set val(sample_ID), file(sample_bam) from sample_bam_delly2_inversions
-
-    output:
-    file "inversions.vcf"
-
-    script:
-    """
-    $params.samtools_bin index ${sample_bam}
-    $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${sample_bam}"
-    $params.delly2_bcftools_bin view inversions.bcf > inversions.vcf
-    rm -f ${sample_bam}.bai
-    """
-}
-
-process delly2_translocations {
-    tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-translocations", mode: 'copy', overwrite: true,
-        saveAs: { filename -> "${sample_ID}_translocations.vcf" }
-
-    input:
-    set val(sample_ID), file(sample_bam) from sample_bam_delly2_translocations
-
-    output:
-    file "translocations.vcf"
-
-    script:
-    """
-    $params.samtools_bin index ${sample_bam}
-    $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${sample_bam}"
-    $params.delly2_bcftools_bin view translocations.bcf > translocations.vcf
-    rm -f ${sample_bam}.bai
-    """
-}
-
-process delly2_insertions {
-    tag { sample_ID }
-    publishDir "${params.output_dir}/SNV-Delly2-insertions", mode: 'copy', overwrite: true,
-        saveAs: { filename -> "${sample_ID}_insertions.vcf" }
-
-    input:
-    set val(sample_ID), file(sample_bam) from sample_bam_delly2_insertions
-
-    output:
-    file "insertions.vcf"
-
-    script:
-    """
-    $params.samtools_bin index ${sample_bam}
-    $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${sample_bam}"
-    $params.delly2_bcftools_bin view insertions.bcf > insertions.vcf
-    rm -f ${sample_bam}.bai
-    """
-}
+// // DELLY2 SNV STEPS
+// process delly2_deletions {
+//     tag { sample_ID }
+//     publishDir "${params.output_dir}/SNV-Delly2-deletions", mode: 'copy', overwrite: true,
+//         saveAs: { filename -> "${sample_ID}_deletions.vcf" }
+//
+//     input:
+//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_deletions
+//
+//     output:
+//     file "deletions.vcf"
+//
+//     script:
+//     """
+//     $params.samtools_bin index ${sample_bam}
+//     $params.delly2_bin call -t DEL -g ${params.hg19_fa} -o deletions.bcf "${sample_bam}"
+//     $params.delly2_bcftools_bin view deletions.bcf > deletions.vcf
+//     rm -f ${sample_bam}.bai
+//     """
+// }
+//
+// process delly2_duplications {
+//     tag { sample_ID }
+//     publishDir "${params.output_dir}/SNV-Delly2-duplications", mode: 'copy', overwrite: true,
+//         saveAs: { filename -> "${sample_ID}_duplications.vcf" }
+//
+//     input:
+//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_duplications
+//
+//     output:
+//     file "duplications.vcf"
+//
+//     script:
+//     """
+//     $params.samtools_bin index ${sample_bam}
+//     $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${sample_bam}"
+//     $params.delly2_bcftools_bin view duplications.bcf > duplications.vcf
+//     rm -f ${sample_bam}.bai
+//     """
+// }
+//
+// process delly2_inversions {
+//     tag { sample_ID }
+//     publishDir "${params.output_dir}/SNV-Delly2-inversions", mode: 'copy', overwrite: true,
+//         saveAs: { filename -> "${sample_ID}_inversions.vcf" }
+//
+//     input:
+//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_inversions
+//
+//     output:
+//     file "inversions.vcf"
+//
+//     script:
+//     """
+//     $params.samtools_bin index ${sample_bam}
+//     $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${sample_bam}"
+//     $params.delly2_bcftools_bin view inversions.bcf > inversions.vcf
+//     rm -f ${sample_bam}.bai
+//     """
+// }
+//
+// process delly2_translocations {
+//     tag { sample_ID }
+//     publishDir "${params.output_dir}/SNV-Delly2-translocations", mode: 'copy', overwrite: true,
+//         saveAs: { filename -> "${sample_ID}_translocations.vcf" }
+//
+//     input:
+//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_translocations
+//
+//     output:
+//     file "translocations.vcf"
+//
+//     script:
+//     """
+//     $params.samtools_bin index ${sample_bam}
+//     $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${sample_bam}"
+//     $params.delly2_bcftools_bin view translocations.bcf > translocations.vcf
+//     rm -f ${sample_bam}.bai
+//     """
+// }
+//
+// process delly2_insertions {
+//     tag { sample_ID }
+//     publishDir "${params.output_dir}/SNV-Delly2-insertions", mode: 'copy', overwrite: true,
+//         saveAs: { filename -> "${sample_ID}_insertions.vcf" }
+//
+//     input:
+//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_insertions
+//
+//     output:
+//     file "insertions.vcf"
+//
+//     script:
+//     """
+//     $params.samtools_bin index ${sample_bam}
+//     $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${sample_bam}"
+//     $params.delly2_bcftools_bin view insertions.bcf > insertions.vcf
+//     rm -f ${sample_bam}.bai
+//     """
+// }
 
 
 

@@ -1,7 +1,14 @@
 // Exome sequencing analysis workflow
+
+// pipeline settings; overriden by nextflow.config and CLI args
 params.output_dir = "output-exome"
 params.bam_dd_ra_rc_gatk_dir = "bam_dd_ra_rc_gatk"
 
+
+
+//
+// DATA INPUT CHANNELS
+//
 // targets .bed file
 Channel.fromPath( file(params.targets_bed) ).set{ targets_bed }
 
@@ -31,6 +38,18 @@ Channel.fromPath( file(params.samples_analysis_sheet) )
         .into { samples_R1_R2; samples_R1_R2_2 }
 
 
+
+
+
+
+
+
+
+//
+// PIPELINE TASKS
+//
+
+// PREPROCESSING
 
 process fastq_merge {
     // merge the R1 and R2 fastq files into a single fastq each
@@ -200,7 +219,7 @@ samples_dd_bam.combine(ref_fasta)
 
 
 
-
+// GATK RECALIBRATION AND VARIANT CALLING
 
 process qc_target_reads_gatk_genome {
     tag { "${sample_ID}" }
@@ -337,7 +356,7 @@ process qc_target_reads_gatk_bed {
 }
 
 
-
+// MAIN REALIGNMENT AND RECALIBRATION STEP
 process bam_ra_rc_gatk {
     // re-alignment and recalibration with GATK
     // https://software.broadinstitute.org/gatk/documentation/tooldocs/3.8-0/org_broadinstitute_gatk_tools_walkers_bqsr_BaseRecalibrator.php
@@ -447,7 +466,11 @@ samples_dd_ra_rc_bam.combine(ref_fasta2)
                     .combine(targets_bed2)
                     .tap { samples_dd_ra_rc_bam_ref;
                             samples_dd_ra_rc_bam_ref2;
-                            samples_dd_ra_rc_bam_ref3 }
+                            samples_dd_ra_rc_bam_ref3;
+                            samples_dd_ra_rc_bam_ref4;
+                            samples_dd_ra_rc_bam_ref5;
+                            samples_dd_ra_rc_bam_ref6;
+                            samples_dd_ra_rc_bam_ref7 }
 
 
 
@@ -570,7 +593,7 @@ process gatk_hc {
 
     output:
     file("${sample_ID}.vcf")
-    file("${sample_ID}.norm.vcf")
+    set val(sample_ID), file("${sample_ID}.norm.vcf") into sample_vcf_hc
 
     script:
     """
@@ -599,3 +622,200 @@ process gatk_hc {
     --output-type v > "${sample_ID}.norm.vcf"
     """
 }
+
+
+
+
+
+
+
+
+//
+// DOWNSTREAM TASKS
+//
+// DELLY2 SNV STEPS
+process delly2_deletions {
+    tag { sample_ID }
+    publishDir "${params.output_dir}/snv-deletions-Delly2", mode: 'copy', overwrite: true
+
+    input:
+    set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_ra_rc_bam_ref4
+
+    output:
+    file "${sample_ID}.deletions.vcf"
+
+    script:
+    """
+    ${params.delly2_bin} call -t DEL -g ${ref_fasta} -o "${sample_ID}.deletions.bcf" "${sample_bam}"
+    ${params.delly2_bcftools_bin} view "${sample_ID}.deletions.bcf" > "${sample_ID}.deletions.vcf"
+    """
+}
+//
+// process delly2_duplications {
+//     tag { sample_ID }
+//     publishDir "${params.output_dir}/SNV-Delly2-duplications", mode: 'copy', overwrite: true,
+//         saveAs: { filename -> "${sample_ID}_duplications.vcf" }
+//
+//     input:
+//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_duplications
+//
+//     output:
+//     file "duplications.vcf"
+//
+//     script:
+//     """
+//     $params.samtools_bin index ${sample_bam}
+//     $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${sample_bam}"
+//     $params.delly2_bcftools_bin view duplications.bcf > duplications.vcf
+//     rm -f ${sample_bam}.bai
+//     """
+// }
+//
+// process delly2_inversions {
+//     tag { sample_ID }
+//     publishDir "${params.output_dir}/SNV-Delly2-inversions", mode: 'copy', overwrite: true,
+//         saveAs: { filename -> "${sample_ID}_inversions.vcf" }
+//
+//     input:
+//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_inversions
+//
+//     output:
+//     file "inversions.vcf"
+//
+//     script:
+//     """
+//     $params.samtools_bin index ${sample_bam}
+//     $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${sample_bam}"
+//     $params.delly2_bcftools_bin view inversions.bcf > inversions.vcf
+//     rm -f ${sample_bam}.bai
+//     """
+// }
+//
+// process delly2_translocations {
+//     tag { sample_ID }
+//     publishDir "${params.output_dir}/SNV-Delly2-translocations", mode: 'copy', overwrite: true,
+//         saveAs: { filename -> "${sample_ID}_translocations.vcf" }
+//
+//     input:
+//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_translocations
+//
+//     output:
+//     file "translocations.vcf"
+//
+//     script:
+//     """
+//     $params.samtools_bin index ${sample_bam}
+//     $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${sample_bam}"
+//     $params.delly2_bcftools_bin view translocations.bcf > translocations.vcf
+//     rm -f ${sample_bam}.bai
+//     """
+// }
+//
+// process delly2_insertions {
+//     tag { sample_ID }
+//     publishDir "${params.output_dir}/SNV-Delly2-insertions", mode: 'copy', overwrite: true,
+//         saveAs: { filename -> "${sample_ID}_insertions.vcf" }
+//
+//     input:
+//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_insertions
+//
+//     output:
+//     file "insertions.vcf"
+//
+//     script:
+//     """
+//     $params.samtools_bin index ${sample_bam}
+//     $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${sample_bam}"
+//     $params.delly2_bcftools_bin view insertions.bcf > insertions.vcf
+//     rm -f ${sample_bam}.bai
+//     """
+// }
+
+
+// Genomic Signatures
+process deconstructSigs_signatures {
+    tag { "${sample_ID}" }
+    validExitStatus 0,11 // allow '11' failure triggered by no variants
+    errorStrategy 'ignore'
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+    publishDir "${params.output_dir}/signatures_hc", mode: 'copy', overwrite: true,
+        saveAs: {filename ->
+            if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
+            else if (filename == 'sample_signatures.pdf') "${sample_ID}_signatures.pdf"
+            else if (filename == 'sample_signatures_pie.pdf') "${sample_ID}_signatures_pie.pdf"
+            else filename
+        }
+    input:
+    set val(sample_ID), file(sample_vcf) from sample_vcf_hc
+
+    output:
+    file "${sample_ID}_signatures.Rds"
+    file "${sample_ID}_signatures.pdf" into signatures_plots
+    file "${sample_ID}_signatures_pie.pdf" into signatures_pie_plots
+
+    script:
+    """
+    deconstructSigs_make_signatures.R "${sample_ID}" "${sample_vcf}"
+    """
+}
+
+
+
+// // REQUIRES ANNOTATIONS FOR DBSNP FILTERING
+// process vaf_distribution_plot {
+//     tag { sample_ID }
+//     // executor "local"
+//     publishDir "${params.output_dir}/VAF-Distribution", mode: 'copy', overwrite: true
+//
+//     input:
+//     set val(sample_ID), file(sample_vcf_annot) from sample_vcf_annot
+//
+//     output:
+//     file "${sample_ID}_vaf_dist.pdf" into vaf_distribution_plots
+//
+//     script:
+//     """
+//     $params.vaf_distribution_plot_script "${sample_ID}" "${sample_vcf_annot}"
+//     """
+//
+// }
+
+
+// REQUIRES PAIRED SAMPLES BAM FILES
+// process msisensor {
+//     tag { sample_ID }
+//     module 'samtools/1.3'
+//     clusterOptions '-pe threaded 1-8 -j y -l mem_free=40G'
+//     publishDir "${params.output_dir}/MSI", mode: 'copy', overwrite: true,
+//         saveAs: {filename ->
+//             if (filename == 'msisensor') "${sample_ID}.msisensor"
+//             else if (filename == 'msisensor_dis') "${sample_ID}.msisensor_dis"
+//             else if (filename == 'msisensor_germline') "${sample_ID}.msisensor_germline"
+//             else if (filename == 'msisensor_somatic') "${sample_ID}.msisensor_somatic"
+//             else null
+//         }
+//
+//     input:
+//     set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), val(sample_normal_ID), file(sample_normal_bam) from sample_pairs_msi
+//     file regions_bed from file(params.regions_bed) // name "regions.bed"
+//     // set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_msi
+//     // file microsatellites from file(params.microsatellites)
+//
+//     output:
+//     file "${sample_tumor_ID}_${sample_normal_ID}.msisensor"
+//     file "${sample_tumor_ID}_${sample_normal_ID}.msisensor_dis"
+//     file "${sample_tumor_ID}_${sample_normal_ID}.msisensor_germline"
+//     file "${sample_tumor_ID}_${sample_normal_ID}.msisensor_somatic"
+//
+//     script:
+//     // $params.subset_msisensor_microsatellite_list_script *.bam -m $params.microsatellites -o microsatellites_subset.txt
+//     // $params.subset_bam_bed_script *.bam -b $regions_bed -o targets_subset.bed
+//     // rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai" targets_subset.bed microsatellites_subset.txt
+//     """
+//     samtools index "$sample_tumor_bam"
+//     samtools index "$sample_normal_bam"
+//     $params.msisensor_bin msi -d $params.microsatellites -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o "${sample_tumor_ID}_${sample_normal_ID}.msisensor" -l 1 -q 1 -b \${NSLOTS:-1}
+//     rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai"
+//     """
+// }
