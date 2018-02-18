@@ -22,8 +22,8 @@ Channel.fromPath( file(params.trimmomatic_contaminant_fa) ).set{ trimmomatic_con
 Channel.fromPath( file(params.ref_fa_bwa_dir) ).set{ ref_fa_bwa_dir }
 Channel.fromPath( file(params.gatk_1000G_phase1_indels_hg19_vcf) ).set{ gatk_1000G_phase1_indels_vcf }
 Channel.fromPath( file(params.mills_and_1000G_gold_standard_indels_hg19_vcf) ).set{ mills_and_1000G_gold_standard_indels_vcf }
-Channel.fromPath( file(params.dbsnp_ref_vcf) ).set{ dbsnp_ref_vcf }
-Channel.fromPath( file(params.cosmic_ref_vcf) ).set{ cosmic_ref_vcf }
+Channel.fromPath( file(params.dbsnp_ref_vcf) ).into{ dbsnp_ref_vcf; dbsnp_ref_vcf2 }
+Channel.fromPath( file(params.cosmic_ref_vcf) ).into{ cosmic_ref_vcf; cosmic_ref_vcf2 }
 Channel.fromPath( file(params.microsatellites) ).set{ microsatellites }
 
 
@@ -488,7 +488,8 @@ samples_dd_ra_rc_bam.combine(ref_fasta2)
                             samples_dd_ra_rc_bam_ref4;
                             samples_dd_ra_rc_bam_ref5;
                             samples_dd_ra_rc_bam_ref6;
-                            samples_dd_ra_rc_bam_ref7 }
+                            samples_dd_ra_rc_bam_ref7;
+                            samples_dd_ra_rc_bam_ref8 }
 
 
 
@@ -653,7 +654,7 @@ process gatk_hc {
 //
 // DELLY2 SNV STEPS
 process delly2_deletions {
-    tag { sample_ID }
+    tag { "${sample_ID}" }
     publishDir "${params.output_dir}/snv-deletions-Delly2", mode: 'copy', overwrite: true
 
     input:
@@ -664,50 +665,44 @@ process delly2_deletions {
 
     script:
     """
-    ${params.delly2_bin} call -t DEL -g ${ref_fasta} -o "${sample_ID}.deletions.bcf" "${sample_bam}"
-    ${params.delly2_bcftools_bin} view "${sample_ID}.deletions.bcf" > "${sample_ID}.deletions.vcf"
+    "${params.delly2_bin}" call -t DEL -g "${ref_fasta}" -o "${sample_ID}.deletions.bcf" "${sample_bam}"
+    "${params.delly2_bcftools_bin}" view "${sample_ID}.deletions.bcf" > "${sample_ID}.deletions.vcf"
     """
 }
-//
-// process delly2_duplications {
-//     tag { sample_ID }
-//     publishDir "${params.output_dir}/SNV-Delly2-duplications", mode: 'copy', overwrite: true,
-//         saveAs: { filename -> "${sample_ID}_duplications.vcf" }
-//
-//     input:
-//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_duplications
-//
-//     output:
-//     file "duplications.vcf"
-//
-//     script:
-//     """
-//     $params.samtools_bin index ${sample_bam}
-//     $params.delly2_bin call -t DUP -g ${params.hg19_fa} -o duplications.bcf "${sample_bam}"
-//     $params.delly2_bcftools_bin view duplications.bcf > duplications.vcf
-//     rm -f ${sample_bam}.bai
-//     """
-// }
-//
-// process delly2_inversions {
-//     tag { sample_ID }
-//     publishDir "${params.output_dir}/SNV-Delly2-inversions", mode: 'copy', overwrite: true,
-//         saveAs: { filename -> "${sample_ID}_inversions.vcf" }
-//
-//     input:
-//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_inversions
-//
-//     output:
-//     file "inversions.vcf"
-//
-//     script:
-//     """
-//     $params.samtools_bin index ${sample_bam}
-//     $params.delly2_bin call -t INV -g ${params.hg19_fa} -o inversions.bcf "${sample_bam}"
-//     $params.delly2_bcftools_bin view inversions.bcf > inversions.vcf
-//     rm -f ${sample_bam}.bai
-//     """
-// }
+
+process delly2_duplications {
+    tag { "${sample_ID}" }
+    publishDir "${params.output_dir}/snv-duplications-Delly2", mode: 'copy', overwrite: true
+
+    input:
+    set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_ra_rc_bam_ref5
+
+    output:
+    file "${sample_ID}.duplications.vcf"
+
+    script:
+    """
+    "${params.delly2_bin}" call -t DUP -g "${ref_fasta}" -o "${sample_ID}.duplications.bcf" "${sample_bam}"
+    "${params.delly2_bcftools_bin}" view "${sample_ID}.duplications.bcf" > "${sample_ID}.duplications.vcf"
+    """
+}
+
+process delly2_inversions {
+    tag { "${sample_ID}" }
+    publishDir "${params.output_dir}/snv-inversions-Delly2", mode: 'copy', overwrite: true
+
+    input:
+    set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_ra_rc_bam_ref6
+
+    output:
+    file "${sample_ID}.inversions.bcf"
+
+    script:
+    """
+    "${params.delly2_bin}" call -t INV -g "${ref_fasta}" -o "${sample_ID}.inversions.bcf" "${sample_bam}"
+    "${params.delly2_bcftools_bin}" view "${sample_ID}.inversions.bcf" > "${sample_ID}.inversions.bcf"
+    """
+}
 //
 // process delly2_translocations {
 //     tag { sample_ID }
@@ -859,12 +854,34 @@ samples_dd_ra_rc_bam2.combine(samples_pairs) // [ sampleID, sampleBam, sampleBai
                     .combine(ref_fai3)
                     .combine(ref_dict3)
                     .combine(targets_bed4)
-                    .tap {  samples_dd_ra_rc_bam_pairs_ref;
+                    .tap {  samples_dd_ra_rc_bam_pairs_ref; // [ comparisonID, tumorID, tumorBam, tumorBai, normalID, normalBam, normalBai, file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed) ]
                             samples_dd_ra_rc_bam_pairs2;
                             samples_dd_ra_rc_bam_pairs_ref3;
                             samples_dd_ra_rc_bam_pairs_ref4 }
-                    .combine(microsatellites)
+                    .combine(microsatellites) // add MSI ref
                     .tap { samples_dd_ra_rc_bam_pairs_ref_msi }
+
+
+
+
+// get the unique chromosomes in the targets bed file
+//  for per-chrom paired variant calling
+Channel.fromPath( params.targets_bed )
+            .splitCsv(sep: '\t')
+            .map{row ->
+                row[0]
+            }
+            .unique()
+            .set{ chroms }
+
+// add the reference .vcf
+samples_dd_ra_rc_bam_pairs_ref.combine(dbsnp_ref_vcf2)
+                            .combine(cosmic_ref_vcf2)
+                            .tap { samples_dd_ra_rc_bam_pairs_ref_gatk } // [ comparisonID, tumorID, tumorBam, tumorBai, normalID, normalBam, normalBai, file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed), dbsnp, cosmic ]
+                            // add the chroms
+                            .combine( chroms ) // [ comparisonID, tumorID, tumorBam, tumorBai, normalID, normalBam, normalBai, file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed), dbsnp, cosmic, chrom ]
+                            .set { samples_dd_ra_rc_bam_pairs_ref_gatk_chrom }
+
 
 
 samples_dd_ra_rc_bam_pairs2.subscribe { println "samples_dd_ra_rc_bam_pairs2: ${it}" }
@@ -891,14 +908,11 @@ process msisensor {
     tag { "${comparisonID}" }
     module 'samtools/1.3'
     clusterOptions '-pe threaded 1-8 -l mem_free=40G'
-    publishDir "${params.output_dir}/microsatellites", mode: 'copy', overwrite: true,
+    publishDir "${params.output_dir}/microsatellites", mode: 'copy', overwrite: true
 
 
     input:
     set val(comparisonID), val(tumorID), file(tumorBam), file(tumorBai), val(normalID), file(normalBam), file(normalBai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed), file(microsatellites) from samples_dd_ra_rc_bam_pairs_ref_msi
-    // file regions_bed from file(params.regions_bed) // name "regions.bed"
-    // set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_msi
-    // file microsatellites from file(params.microsatellites)
 
     output:
     file "${comparisonID}.msisensor"
@@ -907,10 +921,45 @@ process msisensor {
     file "${comparisonID}.msisensor_somatic"
 
     script:
-    // $params.subset_msisensor_microsatellite_list_script *.bam -m $params.microsatellites -o microsatellites_subset.txt
-    // $params.subset_bam_bed_script *.bam -b $regions_bed -o targets_subset.bed
-    // rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai" targets_subset.bed microsatellites_subset.txt
     """
     "${params.msisensor_bin}" msi -d "${microsatellites}" -n "${normalBam}" -t "${tumorBam}" -e "${targets_bed}" -o "${comparisonID}.msisensor" -l 1 -q 1 -b \${NSLOTS:-1}
+    """
+}
+
+
+process mutect2 {
+    tag { "${comparisonID}:${chrom}" }
+    publishDir "${params.output_dir}/vcf_mutect2", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+    clusterOptions '-l mem_free=150G -hard'
+    module 'samtools/1.3'
+    module 'java/1.8'
+
+    input:
+    set val(comparisonID), val(tumorID), file(tumorBam), file(tumorBai), val(normalID), file(normalBam), file(normalBai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed), file(dbsnp_ref_vcf), file(cosmic_ref_vcf), val(chrom) from samples_dd_ra_rc_bam_pairs_ref_gatk_chrom
+
+    output:
+    file("${comparisonID}.${chrom}.vcf")
+
+    script:
+    """
+    subset_bed.py "${chrom}" "${targets_bed}" > "${comparisonID}.${chrom}.bed"
+
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T MuTect2 \
+    -dt NONE \
+    --logging_level WARN \
+    --standard_min_confidence_threshold_for_calling 30 \
+    --max_alt_alleles_in_normal_count 10 \
+    --max_alt_allele_in_normal_fraction 0.05 \
+    --max_alt_alleles_in_normal_qscore_sum 40 \
+    --reference_sequence "${ref_fasta}" \
+    --dbsnp "${dbsnp_ref_vcf}" \
+    --cosmic "${cosmic_ref_vcf}" \
+    --intervals "${comparisonID}.${chrom}.bed" \
+    --interval_padding 10 \
+    --input_file:tumor "${tumorBam}" \
+    --input_file:normal "${normalBam}" \
+    --out "${comparisonID}.${chrom}.vcf"
     """
 }

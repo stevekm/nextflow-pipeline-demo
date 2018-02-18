@@ -51,47 +51,47 @@ Channel.fromPath( params.targets_bed )
             .unique()
             .set{ chroms }
 
-
-process mutect2 {
-    tag { "${comparison_ID}:${chrom}" }
-    publishDir "${params.wes_output_dir}/vcf_mutect2", mode: 'copy', overwrite: true
-    beforeScript "${params.beforeScript_str}"
-    afterScript "${params.afterScript_str}"
-    clusterOptions '-l mem_free=150G -hard'
-    module 'samtools/1.3'
-    module 'java/1.8'
-
-    input:
-    set val(chrom), val(comparison_ID), val(sample_ID_tumor), file(tumor_bam), val(sample_ID_normal), file(normal_bam), file(targets_bed), file(ref_fasta), file(ref_fai), file(ref_dict), file(dbsnp_ref_vcf), file(cosmic_ref_vcf) from chroms.combine(samples_pairs)
-
-    output:
-    file("${comparison_ID}.vcf")
-
-    script:
-    """
-    subset_bed.py "${chrom}" "${targets_bed}" > "${comparison_ID}.${chrom}.bed"
-
-    samtools index "${tumor_bam}"
-    samtools index "${normal_bam}"
-
-    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T MuTect2 \
-    -dt NONE \
-    --logging_level WARN \
-    --standard_min_confidence_threshold_for_calling 30 \
-    --max_alt_alleles_in_normal_count 10 \
-    --max_alt_allele_in_normal_fraction 0.05 \
-    --max_alt_alleles_in_normal_qscore_sum 40 \
-    --reference_sequence "${ref_fasta}" \
-    --dbsnp "${dbsnp_ref_vcf}" \
-    --cosmic "${cosmic_ref_vcf}" \
-    --intervals "${comparison_ID}.${chrom}.bed" \
-    --interval_padding 10 \
-    --input_file:tumor "${tumor_bam}" \
-    --input_file:normal "${normal_bam}" \
-    --out "${comparison_ID}.vcf"
-
-    rm -f "${tumor_bam}.bai"
-    rm -f "${normal_bam}.bai"
-    rm -f "${comparison_ID}.${chrom}.bed"
-    """
-}
+//
+// process mutect2 {
+//     tag { "${comparison_ID}:${chrom}" }
+//     publishDir "${params.wes_output_dir}/vcf_mutect2", mode: 'copy', overwrite: true
+//     beforeScript "${params.beforeScript_str}"
+//     afterScript "${params.afterScript_str}"
+//     clusterOptions '-l mem_free=150G -hard'
+//     module 'samtools/1.3'
+//     module 'java/1.8'
+//
+//     input:
+//     set val(chrom), val(comparison_ID), val(sample_ID_tumor), file(tumor_bam), val(sample_ID_normal), file(normal_bam), file(targets_bed), file(ref_fasta), file(ref_fai), file(ref_dict), file(dbsnp_ref_vcf), file(cosmic_ref_vcf) from chroms.combine(samples_pairs)
+//
+//     output:
+//     file("${comparison_ID}.vcf")
+//
+//     script:
+//     """
+//     subset_bed.py "${chrom}" "${targets_bed}" > "${comparison_ID}.${chrom}.bed"
+//
+//     samtools index "${tumor_bam}"
+//     samtools index "${normal_bam}"
+//
+//     java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T MuTect2 \
+//     -dt NONE \
+//     --logging_level WARN \
+//     --standard_min_confidence_threshold_for_calling 30 \
+//     --max_alt_alleles_in_normal_count 10 \
+//     --max_alt_allele_in_normal_fraction 0.05 \
+//     --max_alt_alleles_in_normal_qscore_sum 40 \
+//     --reference_sequence "${ref_fasta}" \
+//     --dbsnp "${dbsnp_ref_vcf}" \
+//     --cosmic "${cosmic_ref_vcf}" \
+//     --intervals "${comparison_ID}.${chrom}.bed" \
+//     --interval_padding 10 \
+//     --input_file:tumor "${tumor_bam}" \
+//     --input_file:normal "${normal_bam}" \
+//     --out "${comparison_ID}.vcf"
+//
+//     rm -f "${tumor_bam}.bai"
+//     rm -f "${normal_bam}.bai"
+//     rm -f "${comparison_ID}.${chrom}.bed"
+//     """
+// }
