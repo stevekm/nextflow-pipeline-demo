@@ -13,10 +13,10 @@ params.bam_dd_ra_rc_gatk_dir = "bam_dd_ra_rc_gatk"
 Channel.fromPath( file(params.targets_bed) ).set{ targets_bed }
 
 // reference files
-Channel.fromPath( file(params.targets_bed) ).into { targets_bed; targets_bed2; targets_bed3 }
-Channel.fromPath( file(params.ref_fa) ).into { ref_fasta; ref_fasta2 }
-Channel.fromPath( file(params.ref_fai) ).into { ref_fai; ref_fai2 }
-Channel.fromPath( file(params.ref_dict) ).into { ref_dict; ref_dict2 }
+Channel.fromPath( file(params.targets_bed) ).into { targets_bed; targets_bed2; targets_bed3; targets_bed4 }
+Channel.fromPath( file(params.ref_fa) ).into { ref_fasta; ref_fasta2; ref_fasta3 }
+Channel.fromPath( file(params.ref_fai) ).into { ref_fai; ref_fai2; ref_fai3 }
+Channel.fromPath( file(params.ref_dict) ).into { ref_dict; ref_dict2; ref_dict3 }
 Channel.fromPath( file(params.ref_chrom_sizes) ).set{ ref_chrom_sizes }
 Channel.fromPath( file(params.trimmomatic_contaminant_fa) ).set{ trimmomatic_contaminant_fa }
 Channel.fromPath( file(params.ref_fa_bwa_dir) ).set{ ref_fa_bwa_dir }
@@ -24,6 +24,8 @@ Channel.fromPath( file(params.gatk_1000G_phase1_indels_hg19_vcf) ).set{ gatk_100
 Channel.fromPath( file(params.mills_and_1000G_gold_standard_indels_hg19_vcf) ).set{ mills_and_1000G_gold_standard_indels_vcf }
 Channel.fromPath( file(params.dbsnp_ref_vcf) ).set{ dbsnp_ref_vcf }
 Channel.fromPath( file(params.cosmic_ref_vcf) ).set{ cosmic_ref_vcf }
+Channel.fromPath( file(params.microsatellites) ).set{ microsatellites }
+
 
 
 // read samples from analysis samplesheet
@@ -37,10 +39,26 @@ Channel.fromPath( file(params.samples_analysis_sheet) )
         }
         .into { samples_R1_R2; samples_R1_R2_2 }
 
+// read sample tumor-normal pairs from analysis sheet
+Channel.fromPath( file(params.samples_analysis_sheet) )
+        .splitCsv(header: true, sep: '\t')
+        .map { row ->
+            def tumorID = row['Tumor']
+            def normalID = row['Normal']
+            return [ tumorID, normalID ]
+        }
+        .filter { item ->
+            item[0] != item[1] // remove Normal samples
+        }
+        .filter { item ->
+            item[1] != 'NA' // unpaired samples
+        }
+        .into { samples_pairs; samples_pairs2 }
 
+// view paired entries
+samples_pairs2.subscribe { println "samples_pairs2: ${it}" }
 
-
-
+// System.exit(0)
 
 
 
@@ -373,7 +391,7 @@ process bam_ra_rc_gatk {
     set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file), file(gatk_1000G_phase1_indels_vcf), file(mills_and_1000G_gold_standard_indels_vcf), file(dbsnp_ref_vcf) from samples_dd_bam_ref_gatk
 
     output:
-    set val(sample_ID), file("${sample_ID}.dd.ra.rc.bam"), file("${sample_ID}.dd.ra.rc.bam.bai") into samples_dd_ra_rc_bam
+    set val(sample_ID), file("${sample_ID}.dd.ra.rc.bam"), file("${sample_ID}.dd.ra.rc.bam.bai") into samples_dd_ra_rc_bam, samples_dd_ra_rc_bam2, samples_dd_ra_rc_bam3
     file "${sample_ID}.intervals"
     file "${sample_ID}.table1.txt"
     file "${sample_ID}.table2.txt"
@@ -459,7 +477,7 @@ process bam_ra_rc_gatk {
 
 
 
-// setup downstream Channels
+// setup downstream Channels for per-sample analyses
 samples_dd_ra_rc_bam.combine(ref_fasta2)
                     .combine(ref_fai2)
                     .combine(ref_dict2)
@@ -782,40 +800,117 @@ process deconstructSigs_signatures {
 // }
 
 
+
+
+
+
+
+// SETUP CHANNELS FOR PAIRED TUMOR-NORMAL STEPS
+// samples_dd_ra_rc_bam2 // set val(sample_ID), file("${sample_ID}.dd.ra.rc.bam"), file("${sample_ID}.dd.ra.rc.bam.bai")
+// samples_pairs // [ tumorID, normalID ]
+// get all the combinations of samples & pairs
+samples_dd_ra_rc_bam2.combine(samples_pairs) // [ sampleID, sampleBam, sampleBai, tumorID, normalID ]
+                    .filter { item -> // only keep combinations where sample is same as tumor pair sample
+                        def sampleID = item[0]
+                        def sampleBam = item[1]
+                        def sampleBai = item[2]
+                        def tumorID = item[3]
+                        sampleID == tumorID
+                    }
+                    .map { item -> // re-order the elements
+                        def sampleID = item[0]
+                        def sampleBam = item[1]
+                        def sampleBai = item[2]
+                        def tumorID = item[3]
+                        def normalID = item[4]
+
+                        def tumorBam = sampleBam
+                        def tumorBai = sampleBai
+
+                        return [ tumorID, tumorBam, tumorBai, normalID ]
+                    }
+                    .combine(samples_dd_ra_rc_bam3) // combine again to get the samples & files again
+                    .filter { item -> // keep only combinations where the normal ID matches the new sample ID
+                        def tumorID = item[0]
+                        def tumorBam = item[1]
+                        def tumorBai = item[2]
+                        def normalID = item[3]
+                        def sampleID = item[4]
+                        def sampleBam = item[5]
+                        def sampleBai = item[6]
+                        normalID == sampleID
+                    }
+                    .map {item -> // re arrange the elements
+                        def tumorID = item[0]
+                        def tumorBam = item[1]
+                        def tumorBai = item[2]
+                        def normalID = item[3]
+                        def sampleID = item[4]
+                        def sampleBam = item[5]
+                        def sampleBai = item[6]
+
+                        def normalBam = sampleBam
+                        def normalBai = sampleBai
+                        def comparisonID = "${tumorID}_${normalID}"
+                        return [ comparisonID, tumorID, tumorBam, tumorBai, normalID, normalBam, normalBai ]
+                    }
+                    .tap { samples_dd_ra_rc_bam_pairs } // make a channel for just this set of data
+                    .combine(ref_fasta3) // add reference genome and targets
+                    .combine(ref_fai3)
+                    .combine(ref_dict3)
+                    .combine(targets_bed4)
+                    .tap {  samples_dd_ra_rc_bam_pairs_ref;
+                            samples_dd_ra_rc_bam_pairs2;
+                            samples_dd_ra_rc_bam_pairs_ref3;
+                            samples_dd_ra_rc_bam_pairs_ref4 }
+                    .combine(microsatellites)
+                    .tap { samples_dd_ra_rc_bam_pairs_ref_msi }
+
+
+samples_dd_ra_rc_bam_pairs2.subscribe { println "samples_dd_ra_rc_bam_pairs2: ${it}" }
+
+process tumor_normal_compare {
+    tag { "${comparisonID}" }
+    echo true
+    executor "local"
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+
+    input:
+    set val(comparisonID), val(tumorID), file(tumorBam), file(tumorBai), val(normalID), file(normalBam), file(normalBai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed) from samples_dd_ra_rc_bam_pairs_ref3
+
+    script:
+    """
+    echo "[tumor_normal_compare] comparisonID: ${comparisonID}, tumorID: ${tumorID}, tumorBam: ${tumorBam}, tumorBai: ${tumorBai}, normalID: ${normalID}, normalBam: ${normalBam}, normalBai: ${normalBai}, ref_fasta: ${ref_fasta}, ref_fai: ${ref_fai}, ref_dict: ${ref_dict}, targets_bed: ${targets_bed}, "
+    """
+}
+
+
 // REQUIRES PAIRED SAMPLES BAM FILES
-// process msisensor {
-//     tag { sample_ID }
-//     module 'samtools/1.3'
-//     clusterOptions '-pe threaded 1-8 -j y -l mem_free=40G'
-//     publishDir "${params.output_dir}/MSI", mode: 'copy', overwrite: true,
-//         saveAs: {filename ->
-//             if (filename == 'msisensor') "${sample_ID}.msisensor"
-//             else if (filename == 'msisensor_dis') "${sample_ID}.msisensor_dis"
-//             else if (filename == 'msisensor_germline') "${sample_ID}.msisensor_germline"
-//             else if (filename == 'msisensor_somatic') "${sample_ID}.msisensor_somatic"
-//             else null
-//         }
-//
-//     input:
-//     set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), val(sample_normal_ID), file(sample_normal_bam) from sample_pairs_msi
-//     file regions_bed from file(params.regions_bed) // name "regions.bed"
-//     // set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_msi
-//     // file microsatellites from file(params.microsatellites)
-//
-//     output:
-//     file "${sample_tumor_ID}_${sample_normal_ID}.msisensor"
-//     file "${sample_tumor_ID}_${sample_normal_ID}.msisensor_dis"
-//     file "${sample_tumor_ID}_${sample_normal_ID}.msisensor_germline"
-//     file "${sample_tumor_ID}_${sample_normal_ID}.msisensor_somatic"
-//
-//     script:
-//     // $params.subset_msisensor_microsatellite_list_script *.bam -m $params.microsatellites -o microsatellites_subset.txt
-//     // $params.subset_bam_bed_script *.bam -b $regions_bed -o targets_subset.bed
-//     // rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai" targets_subset.bed microsatellites_subset.txt
-//     """
-//     samtools index "$sample_tumor_bam"
-//     samtools index "$sample_normal_bam"
-//     $params.msisensor_bin msi -d $params.microsatellites -n $sample_normal_bam -t $sample_tumor_bam -e $regions_bed -o "${sample_tumor_ID}_${sample_normal_ID}.msisensor" -l 1 -q 1 -b \${NSLOTS:-1}
-//     rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai"
-//     """
-// }
+process msisensor {
+    tag { "${comparisonID}" }
+    module 'samtools/1.3'
+    clusterOptions '-pe threaded 1-8 -l mem_free=40G'
+    publishDir "${params.output_dir}/microsatellites", mode: 'copy', overwrite: true,
+
+
+    input:
+    set val(comparisonID), val(tumorID), file(tumorBam), file(tumorBai), val(normalID), file(normalBam), file(normalBai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed), file(microsatellites) from samples_dd_ra_rc_bam_pairs_ref_msi
+    // file regions_bed from file(params.regions_bed) // name "regions.bed"
+    // set val(sample_ID), val(sample_tumor_ID), file(sample_tumor_bam), file(sample_tumor_bai), val(sample_normal_ID), file(sample_normal_bam), file(sample_normal_bai) from sample_pairs_msi
+    // file microsatellites from file(params.microsatellites)
+
+    output:
+    file "${comparisonID}.msisensor"
+    file "${comparisonID}.msisensor_dis"
+    file "${comparisonID}.msisensor_germline"
+    file "${comparisonID}.msisensor_somatic"
+
+    script:
+    // $params.subset_msisensor_microsatellite_list_script *.bam -m $params.microsatellites -o microsatellites_subset.txt
+    // $params.subset_bam_bed_script *.bam -b $regions_bed -o targets_subset.bed
+    // rm -f "${sample_normal_bam}.bai" "${sample_tumor_bam}.bai" targets_subset.bed microsatellites_subset.txt
+    """
+    "${params.msisensor_bin}" msi -d "${microsatellites}" -n "${normalBam}" -t "${tumorBam}" -e "${targets_bed}" -o "${comparisonID}.msisensor" -l 1 -q 1 -b \${NSLOTS:-1}
+    """
+}
