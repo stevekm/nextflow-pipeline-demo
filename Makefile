@@ -28,19 +28,16 @@ run: exome
 
 # ~~~~~ CLEANUP ~~~~~ #
 clean-traces:
-	rm -f trace.txt.* trace*.txt
+	rm -f trace.txt.*
 
 clean-logs:
 	rm -f .nextflow.log.*
 
-clean-timelines:
-	rm -f *.html
-
 clean-reports:
-	rm -f *.html nextflow.html*
+	rm -f *.html.*
 
 clean-flowcharts:
-	rm -f *.png
+	rm -f *.dot.*
 
 clean-output:
 	[ -d output ] && mv output oldoutput && rm -rf oldoutput &
@@ -50,11 +47,12 @@ clean-output:
 clean-work:
 	[ -d work ] && mv work oldwork && rm -rf oldwork &
 
-clean: clean-logs clean-traces clean-timelines clean-reports clean-flowcharts
+clean: clean-logs clean-traces clean-reports clean-flowcharts
 
 clean-all: clean clean-output clean-work 
 	[ -d .nextflow ] && mv .nextflow .nextflowold && rm -rf .nextflowold &
 	rm -f .nextflow.log
+	rm -f *.png
 
 # ~~~~~ SETUP ~~~~~ #
 # REFERENCE FILES
