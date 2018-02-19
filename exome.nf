@@ -700,49 +700,43 @@ process delly2_inversions {
     script:
     """
     "${params.delly2_bin}" call -t INV -g "${ref_fasta}" -o "${sample_ID}.inversions.bcf" "${sample_bam}"
-    "${params.delly2_bcftools_bin}" view "${sample_ID}.inversions.bcf" > "${sample_ID}.inversions.bcf"
+    "${params.delly2_bcftools_bin}" view "${sample_ID}.inversions.bcf" > "${sample_ID}.inversions.vcf"
     """
 }
-//
-// process delly2_translocations {
-//     tag { sample_ID }
-//     publishDir "${params.output_dir}/SNV-Delly2-translocations", mode: 'copy', overwrite: true,
-//         saveAs: { filename -> "${sample_ID}_translocations.vcf" }
-//
-//     input:
-//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_translocations
-//
-//     output:
-//     file "translocations.vcf"
-//
-//     script:
-//     """
-//     $params.samtools_bin index ${sample_bam}
-//     $params.delly2_bin call -t BND -g ${params.hg19_fa} -o translocations.bcf "${sample_bam}"
-//     $params.delly2_bcftools_bin view translocations.bcf > translocations.vcf
-//     rm -f ${sample_bam}.bai
-//     """
-// }
-//
-// process delly2_insertions {
-//     tag { sample_ID }
-//     publishDir "${params.output_dir}/SNV-Delly2-insertions", mode: 'copy', overwrite: true,
-//         saveAs: { filename -> "${sample_ID}_insertions.vcf" }
-//
-//     input:
-//     set val(sample_ID), file(sample_bam) from sample_bam_delly2_insertions
-//
-//     output:
-//     file "insertions.vcf"
-//
-//     script:
-//     """
-//     $params.samtools_bin index ${sample_bam}
-//     $params.delly2_bin call -t INS -g ${params.hg19_fa} -o insertions.bcf "${sample_bam}"
-//     $params.delly2_bcftools_bin view insertions.bcf > insertions.vcf
-//     rm -f ${sample_bam}.bai
-//     """
-// }
+
+process delly2_translocations {
+    tag { "${sample_ID}" }
+    publishDir "${params.output_dir}/snv-translocations-Delly2", mode: 'copy', overwrite: true
+
+    input:
+    set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_ra_rc_bam_ref7
+
+    output:
+    file "${sample_ID}.translocations.vcf"
+
+    script:
+    """
+    ${params.delly2_bin} call -t BND -g ${ref_fastaa} -o "${sample_ID}.translocations.bcf" "${sample_bam}"
+    ${params.delly2_bcftools_bin} view "${sample_ID}.translocations.bcf" > "${sample_ID}.translocations.vcf"
+    """
+}
+
+process delly2_insertions {
+    tag { "${sample_ID}" }
+    publishDir "${params.output_dir}/snv-insertions-Delly2", mode: 'copy', overwrite: true
+
+    input:
+    set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_ra_rc_bam_ref8
+
+    output:
+    file "insertions.vcf"
+
+    script:
+    """
+    ${params.delly2_bin} call -t INS -g ${ref_fasta} -o "${sample_ID}.insertions.bcf" "${sample_bam}"
+    ${params.delly2_bcftools_bin} view "${sample_ID}.insertions.bcf" > "${sample_ID}.insertions.vcf"
+    """
+}
 
 
 // Genomic Signatures
