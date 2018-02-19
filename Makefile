@@ -14,11 +14,13 @@ setup:
 # exomes pipeline
 exome: install
 	./nextflow run exome.nf -with-report "nextflow-exome.html" -with-trace -with-timeline "timeline-exome.html" -with-dag flowchart-exome.dot && \
-	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome.txt || :
+	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome.txt || : && \
+	[ -f flowchart-exome.dot ] && dot flowchart-exome.dot -Tpng -o flowchart-exome.png
 
 exomer: install
 	./nextflow run exome.nf -resume -with-report "nextflow-exome.html" -with-trace -with-timeline "timeline-exome.html" -with-dag flowchart-exome.dot && \
-	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome.txt || :
+	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome.txt || : && \
+	[ -f flowchart-exome.dot ] && dot flowchart-exome.dot -Tpng -o flowchart-exome.png
 
 # entire pipeline
 run: exome

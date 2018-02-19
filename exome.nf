@@ -716,7 +716,7 @@ process delly2_translocations {
 
     script:
     """
-    ${params.delly2_bin} call -t BND -g ${ref_fastaa} -o "${sample_ID}.translocations.bcf" "${sample_bam}"
+    ${params.delly2_bin} call -t BND -g ${ref_fasta} -o "${sample_ID}.translocations.bcf" "${sample_bam}"
     ${params.delly2_bcftools_bin} view "${sample_ID}.translocations.bcf" > "${sample_ID}.translocations.vcf"
     """
 }
@@ -729,7 +729,7 @@ process delly2_insertions {
     set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_ra_rc_bam_ref8
 
     output:
-    file "insertions.vcf"
+    file "${sample_ID}.insertions.vcf"
 
     script:
     """
