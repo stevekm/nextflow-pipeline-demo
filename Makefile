@@ -11,35 +11,17 @@ install: ./nextflow
 setup: 
 	./generate-samplesheets.py example-data/ && ./update-samplesheets.py
 
-# preprocessing pipeline
-pre:  install
-	./nextflow run preprocessing.nf -with-report "nextflow-preprocessing.html" -with-trace -with-timeline "timeline-preprocessing.html" -with-dag flowchart-preprocessing.png && \
-	[ -f "trace.txt" ] && /bin/mv trace.txt trace-preprocessing.txt || :
-
-prer: install
-	./nextflow run preprocessing.nf -resume -with-report "nextflow-preprocessing.html" -with-trace -with-timeline "timeline-preprocessing.html" -with-dag flowchart-preprocessing.png && \
-	[ -f "trace.txt" ] && /bin/mv trace.txt trace-preprocessing.txt || :
-
 # exomes pipeline
-ex: install
-	./nextflow run exome.nf -with-report "nextflow-exome.html" -with-trace -with-timeline "timeline-exome.html" -with-dag flowchart-exome.png && \
+exome: install
+	./nextflow run exome.nf -with-report "nextflow-exome.html" -with-trace -with-timeline "timeline-exome.html" -with-dag flowchart-exome.dot && \
 	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome.txt || :
 
-exr: install
-	./nextflow run exome.nf -resume -with-report "nextflow-exome.html" -with-trace -with-timeline "timeline-exome.html" -with-dag flowchart-exome.png && \
+exomer: install
+	./nextflow run exome.nf -resume -with-report "nextflow-exome.html" -with-trace -with-timeline "timeline-exome.html" -with-dag flowchart-exome.dot && \
 	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome.txt || :
-
-# exome-pairs pipeline
-exp: install
-	./nextflow run exome-pairs.nf -with-report "nextflow-exome-pairs.html" -with-trace -with-timeline "timeline-exome-pairs.html" -with-dag flowchart-exome-pairs.png && \
-	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome-pairs.txt || :
-
-expr: install
-	./nextflow run exome-pairs.nf -resume -with-report "nextflow-exome-pairs.html" -with-trace -with-timeline "timeline-exome-pairs.html" -with-dag flowchart-exome-pairs.png && \
-	[ -f "trace.txt" ] && /bin/mv trace.txt trace-exome-pairs.txt || :
 
 # entire pipeline
-run: pre ex exp
+run: exome
 
 
 # ~~~~~ CLEANUP ~~~~~ #
@@ -60,18 +42,15 @@ clean-flowcharts:
 
 clean-output:
 	[ -d output ] && mv output oldoutput && rm -rf oldoutput &
+	[ -d output-exome ] && mv output-exome oldoutput-exome && rm -rf oldoutput-exome &
+	
 
 clean-work:
 	[ -d work ] && mv work oldwork && rm -rf oldwork &
 
 clean: clean-logs clean-traces clean-timelines clean-reports clean-flowcharts
 
-clean-wes:
-	[ -d wes_output ] && mv wes_output wes_outputold && rm -rf wes_outputold &
-	[ -d output-exomes ] && mv output-exomes output-exomesold && rm -rf output-exomesold &
-	[ -d output-preprocessing ] && mv output-preprocessing output-preprocessingold && rm -rf output-preprocessingold &
-
-clean-all: clean clean-output clean-work clean-wes
+clean-all: clean clean-output clean-work 
 	[ -d .nextflow ] && mv .nextflow .nextflowold && rm -rf .nextflowold &
 	rm -f .nextflow.log
 
