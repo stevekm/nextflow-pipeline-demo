@@ -7,7 +7,7 @@ annovar_dir="${ANNOVAR_DIR:-none}" # "/ifs/data/molecpathlab/bin/annovar"
 annovar_db_dir="${ANNOVAR_DB_DIR:-none}" # "/ifs/data/molecpathlab/bin/annovar/db/hg19"
 annovar_protocol="${ANNOVAR_PROTOCOL:-none}" # "refGene,1000g2015aug_all,clinvar_20170905,intervar_20170202,dbnsfp33a,esp6500siv2_all,kaviar_20150923,gnomad_exome,gnomad_genome,avsnp150,fathmm,eigen"
 annovar_operation="${ANNOVAR_OPERATION:-none}" # "g,f,f,f,f,f,f,f,f,f,f,f"
-build_version="${ANNVOAR_BUILD_VERSION:-none}" # "hg19"
+build_version="${ANNOVAR_BUILD_VERSION:-none}" # "hg19"
 
 
 if [ "${annovar_dir}" != "none" ]; then
@@ -40,9 +40,9 @@ else
 fi
 
 if [ "${build_version}" != "none" ]; then
-    echo "ANNVOAR_BUILD_VERSION is: $build_version"
+    echo "ANNOVAR_BUILD_VERSION is: $build_version"
 else
-    echo "ERROR: ANNVOAR_BUILD_VERSION is not set, please 'export' it before running"
+    echo "ERROR: ANNOVAR_BUILD_VERSION is not set, please 'export' it before running"
     exit 1
 fi
 
@@ -82,7 +82,7 @@ set -x
 "${annovar_dir}/convert2annovar.pl" --format vcf4old --includeinfo "${input_vcf}" --outfile "${avinput_file}"
 
 # check number of lines between the files
-[ ! "$(wc -l "${avinput_file}" )" -eq "$(grep -v '^#' "${input_vcf}" | wc -l)" ] && echo "ERROR: number of entries does not match between files ${input_vcf} and ${avinput_file}" && exit 1 || :
+[ ! "$( cat "${avinput_file}" | wc -l )" -eq "$(grep -v '^#' "${input_vcf}" | wc -l)" ] && echo "ERROR: number of entries does not match between files ${input_vcf} and ${avinput_file}" && exit 1 || :
 
 # annovate
 "${annovar_dir}/table_annovar.pl" "${avinput_file}" "${annovar_db_dir}" --buildver "${build_version}" --remove --protocol "${annovar_protocol}" --operation "${annovar_operation}" --nastring . --outfile "${sample_ID}" # --thread ${NSLOTS:-1}

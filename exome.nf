@@ -37,7 +37,13 @@ Channel.fromPath( file(params.samples_analysis_sheet) )
             def reads2 = row['R2'].tokenize( ',' ).collect { file(it) }
             return [ sample_ID, reads1, reads2 ]
         }
-        .into { samples_R1_R2; samples_R1_R2_2 }
+        .tap { samples_R1_R2; samples_R1_R2_2 } // set of all fastq R1 R2 per sample
+        .map { sample_ID, reads1, reads2 ->
+            return [ reads1, reads2 ]
+        }
+        .flatMap().flatMap()
+        .set { samples_each_fastq } // emit each fastq file individually, no sampleID
+
 
 // read sample tumor-normal pairs from analysis sheet
 Channel.fromPath( file(params.samples_analysis_sheet) )
@@ -58,7 +64,6 @@ Channel.fromPath( file(params.samples_analysis_sheet) )
 // view paired entries
 samples_pairs2.subscribe { println "samples_pairs2: ${it}" }
 
-// System.exit(0)
 
 
 
@@ -68,6 +73,27 @@ samples_pairs2.subscribe { println "samples_pairs2: ${it}" }
 //
 
 // PREPROCESSING
+process fastqc_raw {
+    tag { "${fastq}" }
+    module "fastqc/0.11.7"
+    publishDir "${params.output_dir}/fastqc-raw", mode: 'copy', overwrite: true
+
+    input:
+    file(fastq) from samples_each_fastq
+
+    output:
+    file(output_html)
+    file(output_zip)
+
+    script:
+    output_html = "${fastq}".replaceFirst(/.fastq.gz$/, "_fastqc.html")
+    output_zip = "${fastq}".replaceFirst(/.fastq.gz$/, "_fastqc.zip")
+    """
+    echo "output_zip: ${output_zip}, output_html: ${output_html}"
+    fastqc -o . "${fastq}"
+    """
+
+}
 
 process fastq_merge {
     // merge the R1 and R2 fastq files into a single fastq each
@@ -102,7 +128,7 @@ process trimmomatic {
     set val(sample_ID), file(read1), file(read2), file(trimmomatic_contaminant_fa) from samples_fastq_merged.combine(trimmomatic_contaminant_fa)
 
     output:
-    set val(sample_ID), file("${sample_ID}_R1.trim.fastq.gz"), file("${sample_ID}_R2.trim.fastq.gz") into samples_fastq_trimmed
+    set val(sample_ID), file("${sample_ID}_R1.trim.fastq.gz"), file("${sample_ID}_R2.trim.fastq.gz") into samples_fastq_trimmed, samples_fastq_trimmed2
 
     script:
     """
@@ -114,10 +140,37 @@ process trimmomatic {
     """
 }
 
+process fastqc_trim {
+    tag { "${sample_ID}" }
+    module "fastqc/0.11.7"
+    publishDir "${params.output_dir}/fastqc-trim", mode: 'copy', overwrite: true
+
+    input:
+    set val(sample_ID),  file(fastq_R1_trim), file(fastq_R2_trim) from samples_fastq_trimmed2
+
+    output:
+    file(output_R1_html)
+    file(output_R1_zip)
+    file(output_R2_html)
+    file(output_R2_zip)
+
+    script:
+    output_R1_html = "${fastq_R1_trim}".replaceFirst(/.fastq.gz$/, "_fastqc.html")
+    output_R1_zip = "${fastq_R1_trim}".replaceFirst(/.fastq.gz$/, "_fastqc.zip")
+    output_R2_html = "${fastq_R2_trim}".replaceFirst(/.fastq.gz$/, "_fastqc.html")
+    output_R2_zip = "${fastq_R2_trim}".replaceFirst(/.fastq.gz$/, "_fastqc.zip")
+    """
+    fastqc -o . "${fastq_R1_trim}"
+    fastqc -o . "${fastq_R2_trim}"
+    """
+
+}
+
+
 process bwa_mem {
     // first pass alignment with BWA
     tag { "${sample_ID}" }
-    clusterOptions '-pe threaded 1-12'
+    clusterOptions '-pe threaded 4-16'
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
     module 'bwa/0.7.17'
@@ -244,7 +297,7 @@ process qc_target_reads_gatk_genome {
     publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-12'
+    clusterOptions '-pe threaded 1-16'
 
     input:
     set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_bam_ref
@@ -279,7 +332,7 @@ process qc_target_reads_gatk_pad500 {
     publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-12'
+    clusterOptions '-pe threaded 1-16'
 
     input:
     set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_bam_ref2
@@ -315,7 +368,7 @@ process qc_target_reads_gatk_pad100 {
     publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-12'
+    clusterOptions '-pe threaded 1-16'
 
     input:
     set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_bam_ref3
@@ -351,7 +404,7 @@ process qc_target_reads_gatk_bed {
     publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-12'
+    clusterOptions '-pe threaded 1-16'
 
     input:
     set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_bam_ref4
@@ -391,7 +444,7 @@ process bam_ra_rc_gatk {
     publishDir "${params.output_dir}/${params.bam_dd_ra_rc_gatk_dir}", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-12'
+    clusterOptions '-pe threaded 4-16'
     module 'samtools/1.3'
 
 
@@ -515,7 +568,7 @@ process qc_coverage_gatk {
     publishDir "${params.output_dir}/qc_coverage_gatk", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-12'
+    clusterOptions '-pe threaded 1-16'
 
     input:
     set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_ra_rc_bam_ref
@@ -575,7 +628,7 @@ process lofreq {
     publishDir "${params.output_dir}/vcf_lofreq", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-12'
+    clusterOptions '-pe threaded 4-16'
     module 'samtools/1.3'
 
     input:
@@ -584,7 +637,7 @@ process lofreq {
     output:
     file("${sample_ID}.vcf")
     file("${sample_ID}.norm.vcf")
-    file("${sample_ID}.norm.sample.${params.build_version}_multianno.txt") into lofreq_annotations
+    file("${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into lofreq_annotations
 
     script:
     """
@@ -613,26 +666,23 @@ process lofreq {
     --output-type v >  "${sample_ID}.norm.vcf"
 
     # annotate the vcf
-    export ANNOVAR_DIR="${params.ANNOVAR_DIR}"
-    export ANNOVAR_DB_DIR="${params.ANNOVAR_DB_DIR}"
-    export ANNOVAR_PROTOCOL="${params.ANNOVAR_PROTOCOL}"
-    export ANNOVAR_OPERATION="${params.ANNOVAR_OPERATION}"
-    export ANNVOAR_BUILD_VERSION="${params.ANNVOAR_BUILD_VERSION}"
     annotate_vcf.sh "${sample_ID}.norm.vcf" "${sample_ID}.norm"
 
     # add a column with the sample ID
-    paste_col.py -i "${sample_ID}.norm.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.norm.sample.${params.build_version}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
+    paste_col.py -i "${sample_ID}.norm.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
-
 lofreq_annotations.collectFile(name: "annotations-lofreq.txt", storeDir: "${params.output_dir}", keepHeader: true)
+
+
+
 
 process gatk_hc {
     tag { "${sample_ID}" }
     publishDir "${params.output_dir}/vcf_hc", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-12'
+    clusterOptions '-pe threaded 4-16'
     module 'samtools/1.3'
 
     input:
@@ -641,7 +691,7 @@ process gatk_hc {
     output:
     file("${sample_ID}.vcf")
     set val(sample_ID), file("${sample_ID}.norm.vcf") into sample_vcf_hc
-    file("${sample_ID}.norm.sample.${params.build_version}_multianno.txt") into gatk_hc_annotations
+    file("${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into gatk_hc_annotations
 
     script:
     """
@@ -670,19 +720,13 @@ process gatk_hc {
     --output-type v > "${sample_ID}.norm.vcf"
 
     # annotate the vcf
-    export ANNOVAR_DIR="${params.ANNOVAR_DIR}"
-    export ANNOVAR_DB_DIR="${params.ANNOVAR_DB_DIR}"
-    export ANNOVAR_PROTOCOL="${params.ANNOVAR_PROTOCOL}"
-    export ANNOVAR_OPERATION="${params.ANNOVAR_OPERATION}"
-    export ANNVOAR_BUILD_VERSION="${params.ANNVOAR_BUILD_VERSION}"
     annotate_vcf.sh "${sample_ID}.norm.vcf" "${sample_ID}.norm"
 
     # add a column with the sample ID
-    paste_col.py -i "${sample_ID}.norm.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.norm.sample.${params.build_version}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
+    paste_col.py -i "${sample_ID}.norm.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
 gatk_hc_annotations.collectFile(name: "annotations-hc.txt", storeDir: "${params.output_dir}", keepHeader: true)
-
 
 
 
@@ -702,7 +746,7 @@ process delly2_deletions {
 
     output:
     file "${sample_ID}.deletions.vcf"
-    file "${sample_ID}.deletions.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" into delly2_deletions_annotations
+    file "${sample_ID}.deletions.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" into delly2_deletions_annotations
 
     script:
     """
@@ -710,15 +754,10 @@ process delly2_deletions {
     "${params.delly2_bcftools_bin}" view "${sample_ID}.deletions.bcf" > "${sample_ID}.deletions.vcf"
 
     # annotate the vcf
-    export ANNOVAR_DIR="${params.ANNOVAR_DIR}"
-    export ANNOVAR_DB_DIR="${params.ANNOVAR_DB_DIR}"
-    export ANNOVAR_PROTOCOL="${params.ANNOVAR_PROTOCOL}"
-    export ANNOVAR_OPERATION="${params.ANNOVAR_OPERATION}"
-    export ANNVOAR_BUILD_VERSION="${params.ANNVOAR_BUILD_VERSION}"
     annotate_vcf.sh "${sample_ID}.deletions.vcf" "${sample_ID}.deletions"
 
     # add a column with the sample ID
-    paste_col.py -i "${sample_ID}.deletions.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.deletions.sample.${params.build_version}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
+    paste_col.py -i "${sample_ID}.deletions.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.deletions.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
 delly2_deletions_annotations.collectFile(name: "annotations-deletions-Delly2.txt", storeDir: "${params.output_dir}", keepHeader: true)
@@ -733,7 +772,7 @@ process delly2_duplications {
 
     output:
     file "${sample_ID}.duplications.vcf"
-    file "${sample_ID}.duplications.sample.${params.build_version}_multianno.txt" into delly2_duplications_annotations
+    file "${sample_ID}.duplications.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" into delly2_duplications_annotations
 
     script:
     """
@@ -741,18 +780,15 @@ process delly2_duplications {
     "${params.delly2_bcftools_bin}" view "${sample_ID}.duplications.bcf" > "${sample_ID}.duplications.vcf"
 
     # annotate the vcf
-    export ANNOVAR_DIR="${params.ANNOVAR_DIR}"
-    export ANNOVAR_DB_DIR="${params.ANNOVAR_DB_DIR}"
-    export ANNOVAR_PROTOCOL="${params.ANNOVAR_PROTOCOL}"
-    export ANNOVAR_OPERATION="${params.ANNOVAR_OPERATION}"
-    export ANNVOAR_BUILD_VERSION="${params.ANNVOAR_BUILD_VERSION}"
     annotate_vcf.sh "${sample_ID}.duplications.vcf" "${sample_ID}.duplications"
 
     # add a column with the sample ID
-    paste_col.py -i "${sample_ID}.duplications.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.duplications.sample.${params.build_version}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
+    paste_col.py -i "${sample_ID}.duplications.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.duplications.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
 delly2_duplications_annotations.collectFile(name: "annotations-duplications-Delly2.txt", storeDir: "${params.output_dir}", keepHeader: true)
+
+
 
 process delly2_inversions {
     tag { "${sample_ID}" }
@@ -763,7 +799,7 @@ process delly2_inversions {
 
     output:
     file "${sample_ID}.inversions.bcf"
-    file "${sample_ID}.inversions.sample.${params.build_version}_multianno.txt" into delly2_inversions_annotations
+    file "${sample_ID}.inversions.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" into delly2_inversions_annotations
 
     script:
     """
@@ -771,18 +807,15 @@ process delly2_inversions {
     "${params.delly2_bcftools_bin}" view "${sample_ID}.inversions.bcf" > "${sample_ID}.inversions.vcf"
 
     # annotate the vcf
-    export ANNOVAR_DIR="${params.ANNOVAR_DIR}"
-    export ANNOVAR_DB_DIR="${params.ANNOVAR_DB_DIR}"
-    export ANNOVAR_PROTOCOL="${params.ANNOVAR_PROTOCOL}"
-    export ANNOVAR_OPERATION="${params.ANNOVAR_OPERATION}"
-    export ANNVOAR_BUILD_VERSION="${params.ANNVOAR_BUILD_VERSION}"
     annotate_vcf.sh "${sample_ID}.inversions.vcf" "${sample_ID}.inversions"
 
     # add a column with the sample ID
-    paste_col.py -i "${sample_ID}.inversions.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.inversions.sample.${params.build_version}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
+    paste_col.py -i "${sample_ID}.inversions.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.inversions.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
 delly2_inversions_annotations.collectFile(name: "annotations-inversions-Delly2.txt", storeDir: "${params.output_dir}", keepHeader: true)
+
+
 
 process delly2_translocations {
     tag { "${sample_ID}" }
@@ -793,7 +826,7 @@ process delly2_translocations {
 
     output:
     file "${sample_ID}.translocations.vcf"
-    file "${sample_ID}.translocations.sample.${params.build_version}_multianno.txt" into delly2_translocations_annotations
+    file "${sample_ID}.translocations.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" into delly2_translocations_annotations
 
     script:
     """
@@ -801,18 +834,14 @@ process delly2_translocations {
     ${params.delly2_bcftools_bin} view "${sample_ID}.translocations.bcf" > "${sample_ID}.translocations.vcf"
 
     # annotate the vcf
-    export ANNOVAR_DIR="${params.ANNOVAR_DIR}"
-    export ANNOVAR_DB_DIR="${params.ANNOVAR_DB_DIR}"
-    export ANNOVAR_PROTOCOL="${params.ANNOVAR_PROTOCOL}"
-    export ANNOVAR_OPERATION="${params.ANNOVAR_OPERATION}"
-    export ANNVOAR_BUILD_VERSION="${params.ANNVOAR_BUILD_VERSION}"
     annotate_vcf.sh "${sample_ID}.translocations.vcf" "${sample_ID}.translocations"
 
     # add a column with the sample ID
-    paste_col.py -i "${sample_ID}.translocations.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.translocations.sample.${params.build_version}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
+    paste_col.py -i "${sample_ID}.translocations.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.translocations.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
 delly2_translocations_annotations.collectFile(name: "annotations-translocations-Delly2.txt", storeDir: "${params.output_dir}", keepHeader: true)
+
 
 process delly2_insertions {
     tag { "${sample_ID}" }
@@ -823,7 +852,7 @@ process delly2_insertions {
 
     output:
     file "${sample_ID}.insertions.vcf"
-    file "${sample_ID}.insertions.sample.${params.build_version}_multianno.txt" into delly2_insertions_annotations
+    file "${sample_ID}.insertions.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" into delly2_insertions_annotations
 
     script:
     """
@@ -831,18 +860,15 @@ process delly2_insertions {
     ${params.delly2_bcftools_bin} view "${sample_ID}.insertions.bcf" > "${sample_ID}.insertions.vcf"
 
     # annotate the vcf
-    export ANNOVAR_DIR="${params.ANNOVAR_DIR}"
-    export ANNOVAR_DB_DIR="${params.ANNOVAR_DB_DIR}"
-    export ANNOVAR_PROTOCOL="${params.ANNOVAR_PROTOCOL}"
-    export ANNOVAR_OPERATION="${params.ANNOVAR_OPERATION}"
-    export ANNVOAR_BUILD_VERSION="${params.ANNVOAR_BUILD_VERSION}"
     annotate_vcf.sh "${sample_ID}.insertions.vcf" "${sample_ID}.insertions"
 
     # add a column with the sample ID
-    paste_col.py -i "${sample_ID}.insertions.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.insertions.sample.${params.build_version}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
+    paste_col.py -i "${sample_ID}.insertions.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.insertions.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
 delly2_insertions_annotations.collectFile(name: "annotations-insertions-Delly2.txt", storeDir: "${params.output_dir}", keepHeader: true)
+
+
 
 // Genomic Signatures
 process deconstructSigs_signatures {
@@ -1040,7 +1066,7 @@ process mutect2 {
 
     output:
     file("${comparisonID}.${chrom}.vcf")
-    file("${comparisonID}.${chrom}.sample.chrom.${params.ANNVOAR_BUILD_VERSION}_multianno.txt") into mutect2_annotations
+    file("${comparisonID}.${chrom}.sample.chrom.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into mutect2_annotations
 
     script:
     """
@@ -1063,18 +1089,13 @@ process mutect2 {
     --out "${comparisonID}.${chrom}.vcf"
 
     # annotate the vcf
-    export ANNOVAR_DIR="${params.ANNOVAR_DIR}"
-    export ANNOVAR_DB_DIR="${params.ANNOVAR_DB_DIR}"
-    export ANNOVAR_PROTOCOL="${params.ANNOVAR_PROTOCOL}"
-    export ANNOVAR_OPERATION="${params.ANNOVAR_OPERATION}"
-    export ANNVOAR_BUILD_VERSION="${params.ANNVOAR_BUILD_VERSION}"
     annotate_vcf.sh "${comparisonID}.${chrom}.vcf" "${comparisonID}.${chrom}"
 
     # add a column with the sample ID
-    paste_col.py -i "${comparisonID}.${chrom}.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" -o "${comparisonID}.${chrom}.sample.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${comparisonID}" -d "\t"
+    paste_col.py -i "${comparisonID}.${chrom}.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${comparisonID}.${chrom}.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${comparisonID}" -d "\t"
 
     # add the col for this chrom
-    paste_col.py -i "${comparisonID}.${chrom}.sample.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" -o "${comparisonID}.${chrom}.sample.chrom.${params.ANNVOAR_BUILD_VERSION}_multianno.txt" --header "SampleChrom" -v "${chrom}" -d "\t"
+    paste_col.py -i "${comparisonID}.${chrom}.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${comparisonID}.${chrom}.sample.chrom.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "SampleChrom" -v "${chrom}" -d "\t"
     """
 }
 mutect2_annotations.collectFile(name: "annotations-mutect2.txt", storeDir: "${params.output_dir}", keepHeader: true)
