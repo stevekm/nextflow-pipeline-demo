@@ -195,7 +195,7 @@ process sambamba_dedup {
 
 process sambamba_dedup_flagstat {
     tag { "${sample_ID}" }
-    publishDir "${params.output_dir}/bam-bwa-dd", mode: 'copy', overwrite: true
+    publishDir "${params.output_dir}/sambamba-dd-flagstat", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
 
@@ -263,7 +263,9 @@ process qc_target_reads_gatk_genome {
     --omitIntervalStatistics \
     --omitLocusTable \
     --omitDepthOutputAtEachBase \
-    -ct 10 -ct 100 -mbq 20 -mmq 20 \
+    -ct 10 -ct 100 \
+    --minBaseQuality 20 \
+    --minMappingQuality 20 \
     --reference_sequence "${ref_fasta}" \
     --input_file "${sample_bam}" \
     --outputFormat csv \
@@ -296,7 +298,9 @@ process qc_target_reads_gatk_pad500 {
     --omitIntervalStatistics \
     --omitLocusTable \
     --omitDepthOutputAtEachBase \
-    -ct 10 -ct 100 -mbq 20 -mmq 20 \
+    -ct 10 -ct 100 \
+    --minBaseQuality 20 \
+    --minMappingQuality 20 \
     --reference_sequence "${ref_fasta}" \
     --intervals "${targets_bed_file}" \
     --interval_padding 500 \
@@ -330,7 +334,9 @@ process qc_target_reads_gatk_pad100 {
     --omitIntervalStatistics \
     --omitLocusTable \
     --omitDepthOutputAtEachBase \
-    -ct 10 -ct 100 -mbq 20 -mmq 20 \
+    -ct 10 -ct 100 \
+    --minBaseQuality 20 \
+    --minMappingQuality 20 \
     --reference_sequence "${ref_fasta}" \
     --intervals "${targets_bed_file}" \
     --interval_padding 100 \
@@ -364,7 +370,9 @@ process qc_target_reads_gatk_bed {
     --omitIntervalStatistics \
     --omitLocusTable \
     --omitDepthOutputAtEachBase \
-    -ct 10 -ct 100 -mbq 20 -mmq 20 \
+    -ct 10 -ct 100 \
+    --minBaseQuality 20 \
+    --minMappingQuality 20 \
     --reference_sequence "${ref_fasta}" \
     --intervals "${targets_bed_file}" \
     --input_file "${sample_bam}" \
@@ -519,6 +527,7 @@ process qc_coverage_gatk {
     file "${sample_ID}.sample_interval_statistics"
     file "${sample_ID}.sample_cumulative_coverage_proportions"
     file "${sample_ID}.sample_cumulative_coverage_counts"
+    file("${sample_ID}.summary.csv") into qc_coverage_gatk_summary
 
     script:
     """
@@ -530,13 +539,18 @@ process qc_coverage_gatk {
     --intervals "${targets_bed_file}" \
     --omitDepthOutputAtEachBase \
     -ct 10 -ct 50 -ct 100 -ct 500 \
-    -mbq 20 -mmq 20 --nBins 999 \
+    --minBaseQuality 20 \
+    --minMappingQuality 20 \
+    --nBins 999 \
     --start 1 --stop 1000 \
     --input_file "${sample_bam}" \
     --outputFormat csv \
     --out "${sample_ID}"
+
+    head -2 "${sample_ID}.sample_summary" > "${sample_ID}.summary.csv"
     """
 }
+qc_coverage_gatk_summary.collectFile(name: "qc_coverage_gatk.csv", storeDir: "${params.output_dir}", keepHeader: true)
 
 process pad_bed {
     publishDir "${params.output_dir}/targets", mode: 'copy', overwrite: true
