@@ -120,7 +120,7 @@ process trimmomatic {
     // http://www.usadellab.org/cms/?page=trimmomatic
     tag { "${sample_ID}" }
     publishDir "${params.output_dir}/fastq-trim", mode: 'copy', overwrite: true
-    clusterOptions '-pe threaded 1-8'
+    clusterOptions '-pe threaded 1-8 -l mem_free=40G -l mem_token=5G'
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
 
@@ -170,7 +170,7 @@ process fastqc_trim {
 process bwa_mem {
     // first pass alignment with BWA
     tag { "${sample_ID}" }
-    clusterOptions '-pe threaded 4-16'
+    clusterOptions '-pe threaded 4-16 -l mem_free=40G -l mem_token=4G'
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
     module 'bwa/0.7.17'
@@ -189,7 +189,7 @@ process bwa_mem {
 
 process sambamba_view_sort {
     tag { "${sample_ID}" }
-    clusterOptions '-pe threaded 1-8'
+    clusterOptions '-pe threaded 1-8 -l mem_free=40G -l mem_token=4G'
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
 
@@ -227,7 +227,7 @@ process sambamba_flagstat {
 process sambamba_dedup {
     tag { "${sample_ID}" }
     publishDir "${params.output_dir}/bam-bwa-dd", mode: 'copy', overwrite: true
-    clusterOptions '-pe threaded 1-8'
+    clusterOptions '-pe threaded 1-8 -l mem_free=40G -l mem_token=4G'
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
     module 'samtools/1.3'
@@ -444,7 +444,7 @@ process bam_ra_rc_gatk {
     publishDir "${params.output_dir}/${params.bam_dd_ra_rc_gatk_dir}", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 4-16'
+    clusterOptions '-pe threaded 4-16 -l mem_free=40G -l mem_token=4G'
     module 'samtools/1.3'
 
 
@@ -628,7 +628,7 @@ process lofreq {
     publishDir "${params.output_dir}/vcf_lofreq", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 4-16'
+    clusterOptions '-pe threaded 4-16 -l mem_free=40G -l mem_token=4G'
     module 'samtools/1.3'
 
     input:
@@ -682,7 +682,7 @@ process gatk_hc {
     publishDir "${params.output_dir}/vcf_hc", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 4-16'
+    clusterOptions '-pe threaded 4-16 -l mem_free=40G -l mem_token=4G'
     module 'samtools/1.3'
 
     input:
