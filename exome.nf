@@ -1175,7 +1175,8 @@ process multiqc {
 
     script:
     """
-    source activate
+    echo "PS:${PS}, PS1:${PS1}"
+    export PS=${PS:-''} && source activate
     multiqc "${params.output_dir}"
     """
 }
