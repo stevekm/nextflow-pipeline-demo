@@ -297,7 +297,7 @@ process qc_target_reads_gatk_genome {
     publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-16'
+    clusterOptions '-pe threaded 1-16 -l mem_free=40G -l mem_token=40G'
 
     input:
     set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict) from samples_dd_bam_ref
@@ -332,7 +332,7 @@ process qc_target_reads_gatk_pad500 {
     publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-16'
+    clusterOptions '-pe threaded 1-16 -l mem_free=40G -l mem_token=40G'
 
     input:
     set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_bam_ref2
@@ -368,7 +368,7 @@ process qc_target_reads_gatk_pad100 {
     publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-16'
+    clusterOptions '-pe threaded 1-16 -l mem_free=40G -l mem_token=40G'
 
     input:
     set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_bam_ref3
@@ -404,7 +404,7 @@ process qc_target_reads_gatk_bed {
     publishDir "${params.output_dir}/qc-target-reads", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-16'
+    clusterOptions '-pe threaded 1-16 -l mem_free=40G -l mem_token=40G'
 
     input:
     set val(sample_ID), file(sample_bam), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_bam_ref4
@@ -568,7 +568,7 @@ process qc_coverage_gatk {
     publishDir "${params.output_dir}/qc_coverage_gatk", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    clusterOptions '-pe threaded 1-16'
+    clusterOptions '-pe threaded 1-16 -l mem_free=40G -l mem_token=40G'
 
     input:
     set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_ra_rc_bam_ref
@@ -1093,7 +1093,7 @@ process tumor_normal_compare {
 process msisensor {
     tag { "${comparisonID}" }
     module 'samtools/1.3'
-    clusterOptions '-pe threaded 1-8 -l mem_free=40G'
+    clusterOptions '-pe threaded 1-8 -l mem_free=40G -l mem_token=40G'
     publishDir "${params.output_dir}/microsatellites", mode: 'copy', overwrite: true
 
 
