@@ -12,3 +12,5 @@ test*
 *.pyc
 foo.*
 new.json
+venv
+

@@ -1171,12 +1171,19 @@ process multiqc {
     module 'python/2.7.3'
 
     input:
-    val(comparisonID) from mutect2_sampleIDs.collect()
+    val(comparisonID) from mutect2_sampleIDs.collect() // force it to wait for last step to finish
+    file(output_dir) from Channel.fromPath("${params.output_dir}")
+
+    output:
+    file "multiqc_report.html"
+    file "multiqc_data"
 
     script:
     """
-    echo "PS:${PS}, PS1:${PS1}"
-    export PS=${PS:-''} && source activate
-    multiqc "${params.output_dir}"
+    export PS=\${PS:-''} # needed for virtualenv bug
+    export PS1=\${PS1:-''}
+    unset PYTHONPATH
+    source activate
+    multiqc "${output_dir}"
     """
 }
