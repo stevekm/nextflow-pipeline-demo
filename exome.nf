@@ -1128,6 +1128,7 @@ process mutect2 {
     output:
     file("${comparisonID}.${chrom}.vcf")
     file("${comparisonID}.${chrom}.sample.chrom.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into mutect2_annotations
+    val(comparisonID) into mutect2_sampleIDs
 
     script:
     """
@@ -1160,3 +1161,21 @@ process mutect2 {
     """
 }
 mutect2_annotations.collectFile(name: "annotations-mutect2.txt", storeDir: "${params.output_dir}", keepHeader: true)
+
+
+process multiqc {
+    publishDir "${params.output_dir}", mode: 'copy', overwrite: true
+    beforeScript "${params.beforeScript_str}"
+    afterScript "${params.afterScript_str}"
+    executor "local"
+    module 'python/2.7.3'
+
+    input:
+    val(comparisonID) from mutect2_sampleIDs.collect()
+
+    script:
+    """
+    source activate
+    multiqc "${params.output_dir}"
+    """
+}
