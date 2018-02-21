@@ -29,6 +29,7 @@ run: exome
 # ~~~~~ CLEANUP ~~~~~ #
 clean-traces:
 	rm -f trace.txt.*
+	rm -f trace-exome.txt.*
 
 clean-logs:
 	rm -f .nextflow.log.*
@@ -53,6 +54,8 @@ clean-all: clean clean-output clean-work
 	[ -d .nextflow ] && mv .nextflow .nextflowold && rm -rf .nextflowold &
 	rm -f .nextflow.log
 	rm -f *.png
+	rm -f trace-exome.txt*
+	rm -f *.html*
 
 # ~~~~~ SETUP ~~~~~ #
 # REFERENCE FILES
