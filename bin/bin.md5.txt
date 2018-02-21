@@ -20,4 +20,7 @@ c73b7528df003f43682bd99a0f41227d  bin/sambamba/sambamba_v0.6.3_linux.tar.bz2
 82cba7ef695538e6a38b9d4156837381  bin/bwa/bwa-0.7.17.tar.bz2
 c4dba1e8cb55db0f94b4c47724b4f9fa  bin/bcftools/bcftools-1.6.tar.bz2
 d08fdeb1de560925ad00bd2e228240b9  bin/GenomeAnalysisTK-3.8-0/GenomeAnalysisTK.jar
-5959143bb684a7fa53a5ea8cac50b2f6  bin/lofreq
+0e52d47ab0dcf8a16e732b0260a7565f  bin/lofreq/lofreq_star-2.1.2_linux-x86-64.tgz
+6820c610975d63b5f2c6b367a6973efc  bin/lofreq/lofreq_star-2.1.2/bin/lofreq2_somatic.py
+cc927cc124860bd5acff3010512205c8  bin/lofreq/lofreq_star-2.1.2/bin/lofreq2_call_pparallel.py
+5959143bb684a7fa53a5ea8cac50b2f6  bin/lofreq/lofreq_star-2.1.2/bin/lofreq

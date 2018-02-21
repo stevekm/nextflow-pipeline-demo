@@ -9,6 +9,12 @@ bin
 |-- htslib
 |   `-- htslib-1.7.tar.bz2
 |-- lofreq
+|   |-- lofreq_star-2.1.2
+|   |   `-- bin
+|   |       |-- lofreq
+|   |       |-- lofreq2_call_pparallel.py
+|   |       `-- lofreq2_somatic.py
+|   `-- lofreq_star-2.1.2_linux-x86-64.tgz
 |-- sambamba
 |   |-- sambamba_v0.6.3
 |   |-- sambamba_v0.6.3_linux.tar.bz2
@@ -32,4 +38,4 @@ bin
         |   `-- TruSeq3-SE.fa
         `-- trimmomatic-0.33.jar
 
-9 directories, 23 files
+12 directories, 26 files
