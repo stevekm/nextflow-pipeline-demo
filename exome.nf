@@ -878,13 +878,8 @@ process deconstructSigs_signatures {
     errorStrategy 'ignore'
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
-    publishDir "${params.output_dir}/signatures_hc", mode: 'copy', overwrite: true,
-        saveAs: {filename ->
-            if (filename == 'sample_signatures.Rds') "${sample_ID}_signatures.Rds"
-            else if (filename == 'sample_signatures.pdf') "${sample_ID}_signatures.pdf"
-            else if (filename == 'sample_signatures_pie.pdf') "${sample_ID}_signatures_pie.pdf"
-            else filename
-        }
+    publishDir "${params.output_dir}/signatures_hc", mode: 'copy', overwrite: true
+    
     input:
     set val(sample_ID), file(sample_vcf) from sample_vcf_hc
 
@@ -899,6 +894,51 @@ process deconstructSigs_signatures {
     """
 }
 
+
+process merge_signatures_plots {
+    validExitStatus 0,11 // allow '11' failure triggered by no variants
+    errorStrategy 'ignore'
+    executor "local"
+    publishDir "${params.output_dir}", mode: 'copy', overwrite: true
+
+    input:
+    file '*' from signatures_plots.toList()
+
+    output:
+    file "signatures.pdf"
+
+    script:
+    """
+    if [ "\$(ls -1 * | wc -l)" -gt 0 ]; then
+        gs -dBATCH -dNOPAUSE -q -dAutoRotatePages=/None -sDEVICE=pdfwrite -sOutputFile=genomic_signatures.pdf *
+    else
+        exit 11
+    fi
+    """
+}
+
+
+process merge_signatures_pie_plots {
+    validExitStatus 0,11 // allow '11' failure triggered by no variants
+    errorStrategy 'ignore'
+    executor "local"
+    publishDir "${params.output_dir}", mode: 'copy', overwrite: true
+
+    input:
+    file '*' from signatures_pie_plots.toList()
+
+    output:
+    file "signatures_pie.pdf"
+
+    script:
+    """
+    if [ "\$(ls -1 * | wc -l)" -gt 0 ]; then
+        gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=genomic_signatures_pie.pdf *
+    else
+        exit 11
+    fi
+    """
+}
 
 
 // // REQUIRES ANNOTATIONS FOR DBSNP FILTERING
@@ -921,8 +961,21 @@ process vaf_distribution_plot {
 
 }
 
+process merge_VAF_plots {
+    executor "local"
+    publishDir "${params.output_dir}/", mode: 'copy', overwrite: true
 
+    input:
+    file '*' from vaf_distribution_plots.toList()
 
+    output:
+    file "vaf_distributions.pdf"
+
+    script:
+    """
+    gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=vaf_distributions.pdf *
+    """
+}
 
 
 
