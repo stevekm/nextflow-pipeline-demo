@@ -3,6 +3,7 @@ none:
 
 
 venv/bin/activate:
+	module unload python && module load python/2.7.3 && \
 	export PYTHONPATH= && \
 	# unset PYTHONPATH && \
 	virtualenv venv --no-site-packages &&\
