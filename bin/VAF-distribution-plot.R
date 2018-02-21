@@ -28,7 +28,7 @@ annot_df <- filter_annotations(annot_df)
 # quit if no variants
 if (nrow(annot_df) < 1) {
     message(sprintf('There are not enough variants for sample %s', sample_ID))
-    quit(status = 1)
+    quit(status = 11)
 }
 
 pdf_output_file <- sprintf("%s_vaf_dist.pdf", sample_ID)

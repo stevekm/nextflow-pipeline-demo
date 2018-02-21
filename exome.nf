@@ -692,6 +692,7 @@ process gatk_hc {
     file("${sample_ID}.vcf")
     set val(sample_ID), file("${sample_ID}.norm.vcf") into sample_vcf_hc
     file("${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into gatk_hc_annotations
+    set val(sample_ID), file("${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into gatk_hc_annotations2
 
     script:
     """
@@ -901,23 +902,24 @@ process deconstructSigs_signatures {
 
 
 // // REQUIRES ANNOTATIONS FOR DBSNP FILTERING
-// process vaf_distribution_plot {
-//     tag { sample_ID }
-//     // executor "local"
-//     publishDir "${params.output_dir}/VAF-Distribution", mode: 'copy', overwrite: true
-//
-//     input:
-//     set val(sample_ID), file(sample_vcf_annot) from sample_vcf_annot
-//
-//     output:
-//     file "${sample_ID}_vaf_dist.pdf" into vaf_distribution_plots
-//
-//     script:
-//     """
-//     $params.vaf_distribution_plot_script "${sample_ID}" "${sample_vcf_annot}"
-//     """
-//
-// }
+process vaf_distribution_plot {
+    tag { "${sample_ID}" }
+    validExitStatus 0,11 // allow '11' failure triggered by no variants
+    errorStrategy 'ignore'
+    publishDir "${params.output_dir}/vaf-distribution-hc", mode: 'copy', overwrite: true
+
+    input:
+    set val(sample_ID), file(sample_vcf_annot) from gatk_hc_annotations2
+
+    output:
+    file "${sample_ID}_vaf_dist.pdf" into vaf_distribution_plots
+
+    script:
+    """
+    VAF-distribution-plot.R "${sample_ID}" "${sample_vcf_annot}"
+    """
+
+}
 
 
 
