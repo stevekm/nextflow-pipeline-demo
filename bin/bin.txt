@@ -1,0 +1,35 @@
+bin
+|-- GenomeAnalysisTK-3.8-0
+|   `-- GenomeAnalysisTK.jar
+|-- bcftools
+|   `-- bcftools-1.6.tar.bz2
+|-- bwa
+|   |-- bwa-0.7.17.tar
+|   `-- bwa-0.7.17.tar.bz2
+|-- htslib
+|   `-- htslib-1.7.tar.bz2
+|-- lofreq
+|-- sambamba
+|   |-- sambamba_v0.6.3
+|   |-- sambamba_v0.6.3_linux.tar.bz2
+|   |-- sambamba_v0.6.6
+|   |-- sambamba_v0.6.6_linux.tar.bz2
+|   |-- sambamba_v0.6.7
+|   `-- sambamba_v0.6.7_linux.tar.bz2
+|-- samtools
+|   |-- samtools-0.1.17.tar.bz2
+|   |-- samtools-0.1.19.tar.bz2
+|   `-- samtools-1.7.tar.bz2
+`-- trimmomatic
+    `-- 0.33
+        |-- LICENSE
+        |-- adapters
+        |   |-- NexteraPE-PE.fa
+        |   |-- TruSeq2-PE.fa
+        |   |-- TruSeq2-SE.fa
+        |   |-- TruSeq3-PE-2.fa
+        |   |-- TruSeq3-PE.fa
+        |   `-- TruSeq3-SE.fa
+        `-- trimmomatic-0.33.jar
+
+9 directories, 23 files
