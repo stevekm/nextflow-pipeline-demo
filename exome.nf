@@ -874,12 +874,12 @@ delly2_insertions_annotations.collectFile(name: "annotations-insertions-Delly2.t
 // Genomic Signatures
 process deconstructSigs_signatures {
     tag { "${sample_ID}" }
-    validExitStatus 0,11 // allow '11' failure triggered by no variants
+    validExitStatus 0,11 // allow '11' failure triggered by few/no variants
     errorStrategy 'ignore'
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
     publishDir "${params.output_dir}/signatures_hc", mode: 'copy', overwrite: true
-    
+
     input:
     set val(sample_ID), file(sample_vcf) from sample_vcf_hc
 
@@ -896,7 +896,7 @@ process deconstructSigs_signatures {
 
 
 process merge_signatures_plots {
-    validExitStatus 0,11 // allow '11' failure triggered by no variants
+    validExitStatus 0,11 // allow '11' failure triggered by few/no variants
     errorStrategy 'ignore'
     executor "local"
     publishDir "${params.output_dir}", mode: 'copy', overwrite: true
@@ -919,7 +919,7 @@ process merge_signatures_plots {
 
 
 process merge_signatures_pie_plots {
-    validExitStatus 0,11 // allow '11' failure triggered by no variants
+    validExitStatus 0,11 // allow '11' failure triggered by few/no variants
     errorStrategy 'ignore'
     executor "local"
     publishDir "${params.output_dir}", mode: 'copy', overwrite: true
@@ -944,7 +944,7 @@ process merge_signatures_pie_plots {
 // // REQUIRES ANNOTATIONS FOR DBSNP FILTERING
 process vaf_distribution_plot {
     tag { "${sample_ID}" }
-    validExitStatus 0,11 // allow '11' failure triggered by no variants
+    validExitStatus 0,11 // allow '11' failure triggered by few/no variants
     errorStrategy 'ignore'
     publishDir "${params.output_dir}/vaf-distribution-hc", mode: 'copy', overwrite: true
 
@@ -963,6 +963,8 @@ process vaf_distribution_plot {
 
 process merge_VAF_plots {
     executor "local"
+    validExitStatus 0,11 // allow '11' failure triggered by few/no variants
+    errorStrategy 'ignore'
     publishDir "${params.output_dir}/", mode: 'copy', overwrite: true
 
     input:
@@ -973,7 +975,11 @@ process merge_VAF_plots {
 
     script:
     """
-    gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=vaf_distributions.pdf *
+    if [ "\$(ls -1 * | wc -l)" -gt 0 ]; then
+        gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=vaf_distributions.pdf *
+    else
+        exit 11
+    fi
     """
 }
 
