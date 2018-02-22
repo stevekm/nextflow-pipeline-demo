@@ -1,7 +1,7 @@
 // Exome sequencing analysis workflow
 
 // pipeline settings; overriden by nextflow.config and CLI args
-params.output_dir = "output-exome"
+params.output_dir = "output-${params.workflow_label}"
 params.bam_dd_ra_rc_gatk_dir = "bam_dd_ra_rc_gatk"
 
 
