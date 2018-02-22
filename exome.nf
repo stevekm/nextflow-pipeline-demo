@@ -3,7 +3,16 @@
 // pipeline settings; overriden by nextflow.config and CLI args
 params.output_dir = "output-${params.workflow_label}"
 
-
+// summary collectFile's
+params.qc_coverage_gatk_file_basename = "qc_coverage_gatk.csv"
+params.annotations_mutect2_file_basename = "annotations-mutect2.txt"
+params.annotations_insertions_Delly2_file_basename = "annotations-insertions-Delly2.txt"
+params.annotations_translocations_Delly2_file_basename = "annotations-translocations-Delly2.txt"
+params.annotations_inversion_Delly2_file_basename = "annotations-inversions-Delly2.txt"
+params.annotations_duplications_Delly2_file_basename = "annotations-duplications-Delly2.txt"
+params.annotations_deletions_Delly2_file_basename = "annotations-deletions-Delly2.txt"
+params.annotations_hc_file_basename = "annotations-hc.txt"
+params.annotations_lofreq_file_basename = "annotations-lofreq.txt"
 
 
 //
@@ -605,7 +614,7 @@ process qc_coverage_gatk {
     head -2 "${sample_ID}.sample_summary" > "${sample_ID}.summary.csv"
     """
 }
-qc_coverage_gatk_summary.collectFile(name: "qc_coverage_gatk.csv", storeDir: "${params.output_dir}", keepHeader: true)
+qc_coverage_gatk_summary.collectFile(name: "${params.qc_coverage_gatk_file_basename}", storeDir: "${params.output_dir}", keepHeader: true)
 
 process pad_bed {
     publishDir "${params.output_dir}/targets", mode: 'copy', overwrite: true
@@ -683,7 +692,7 @@ process lofreq {
 
     """
 }
-lofreq_annotations.collectFile(name: "annotations-lofreq.txt", storeDir: "${params.output_dir}", keepHeader: true)
+lofreq_annotations.collectFile(name: "${params.annotations_lofreq_file_basename}", storeDir: "${params.output_dir}", keepHeader: true)
 
 
 
@@ -746,7 +755,7 @@ process gatk_hc {
     --eval "${sample_ID}.norm.vcf"
     """
 }
-gatk_hc_annotations.collectFile(name: "annotations-hc.txt", storeDir: "${params.output_dir}", keepHeader: true)
+gatk_hc_annotations.collectFile(name: "${params.annotations_hc_file_basename}", storeDir: "${params.output_dir}", keepHeader: true)
 
 
 
@@ -780,7 +789,7 @@ process delly2_deletions {
     paste_col.py -i "${sample_ID}.deletions.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.deletions.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
-delly2_deletions_annotations.collectFile(name: "annotations-deletions-Delly2.txt", storeDir: "${params.output_dir}", keepHeader: true)
+delly2_deletions_annotations.collectFile(name: "${params.annotations_deletions_Delly2_file_basename}", storeDir: "${params.output_dir}", keepHeader: true)
 
 
 process delly2_duplications {
@@ -806,7 +815,7 @@ process delly2_duplications {
     paste_col.py -i "${sample_ID}.duplications.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.duplications.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
-delly2_duplications_annotations.collectFile(name: "annotations-duplications-Delly2.txt", storeDir: "${params.output_dir}", keepHeader: true)
+delly2_duplications_annotations.collectFile(name: "${params.annotations_duplications_Delly2_file_basename}", storeDir: "${params.output_dir}", keepHeader: true)
 
 
 
@@ -833,7 +842,7 @@ process delly2_inversions {
     paste_col.py -i "${sample_ID}.inversions.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.inversions.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
-delly2_inversions_annotations.collectFile(name: "annotations-inversions-Delly2.txt", storeDir: "${params.output_dir}", keepHeader: true)
+delly2_inversions_annotations.collectFile(name: "${params.annotations_inversion_Delly2_file_basename}", storeDir: "${params.output_dir}", keepHeader: true)
 
 
 
@@ -860,7 +869,7 @@ process delly2_translocations {
     paste_col.py -i "${sample_ID}.translocations.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.translocations.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
-delly2_translocations_annotations.collectFile(name: "annotations-translocations-Delly2.txt", storeDir: "${params.output_dir}", keepHeader: true)
+delly2_translocations_annotations.collectFile(name: "${params.annotations_translocations_Delly2_file_basename}", storeDir: "${params.output_dir}", keepHeader: true)
 
 
 process delly2_insertions {
@@ -886,7 +895,7 @@ process delly2_insertions {
     paste_col.py -i "${sample_ID}.insertions.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.insertions.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
     """
 }
-delly2_insertions_annotations.collectFile(name: "annotations-insertions-Delly2.txt", storeDir: "${params.output_dir}", keepHeader: true)
+delly2_insertions_annotations.collectFile(name: "${params.annotations_insertions_Delly2_file_basename}", storeDir: "${params.output_dir}", keepHeader: true)
 
 
 
@@ -1179,7 +1188,7 @@ process mutect2 {
     paste_col.py -i "${comparisonID}.${chrom}.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${comparisonID}.${chrom}.sample.chrom.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "SampleChrom" -v "${chrom}" -d "\t"
     """
 }
-mutect2_annotations.collectFile(name: "annotations-mutect2.txt", storeDir: "${params.output_dir}", keepHeader: true)
+mutect2_annotations.collectFile(name: "${params.annotations_mutect2_file_basename}", storeDir: "${params.output_dir}", keepHeader: true)
 
 
 process multiqc {
@@ -1225,10 +1234,6 @@ workflow.onComplete {
     }
 
     def msg = """
-        The command used to launch the workflow was as follows:
-
-        ${workflow.commandLine}
-
         Pipeline execution summary
         ---------------------------
         Success           : ${workflow.success}
@@ -1247,7 +1252,13 @@ workflow.onComplete {
         Workflow profile  : ${workflow.profile ?: '-'}
         Workflow container: ${workflow.container ?: '-'}
         Container engine  : ${workflow.containerEngine?:'-'}
+        Nextflow run name : ${workflow.runName}
         Nextflow version  : ${workflow.nextflow.version}, build ${workflow.nextflow.build} (${workflow.nextflow.timestamp})
+
+
+        The command used to launch the workflow was as follows:
+
+        ${workflow.commandLine}
 
         --
         This email was sent by Nextflow
@@ -1260,7 +1271,14 @@ workflow.onComplete {
         sendMail {
             to "${params.email_to}"
             from "${params.email_from}"
+            // files from process channels
             attach email_files.toList().getVal()
+            // files from collectFile
+            // attach ["${params.output_dir}/${params.annotations_mutect2_file_basename}",
+            //         "${params.output_dir}/${params.qc_coverage_gatk_file_basename}",
+            //         "${params.output_dir}/${params.annotations_hc_file_basename}",
+            //         "${params.output_dir}/${params.annotations_lofreq_file_basename}"]
+
             subject "[${params.workflow_label}] Pipeline Completion: ${status}"
 
             body
