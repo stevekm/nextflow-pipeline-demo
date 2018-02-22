@@ -641,6 +641,7 @@ process lofreq {
     file("${sample_ID}.norm.vcf")
     file("${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into lofreq_annotations
     file("${sample_ID}.eval.grp")
+    val(sample_ID) into sample_lofreq_done
 
     script:
     """
@@ -704,6 +705,7 @@ process gatk_hc {
     file("${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into gatk_hc_annotations
     set val(sample_ID), file("${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into gatk_hc_annotations2
     file("${sample_ID}.eval.grp")
+    val(sample_ID) into sample_gatk_hc_done
 
     script:
     """
@@ -1188,7 +1190,9 @@ process multiqc {
     module 'python/2.7.3'
 
     input:
-    val(comparisonID) from mutect2_sampleIDs.collect() // force it to wait for last step to finish
+    val(comparisonID) from mutect2_sampleIDs.mix(sample_gatk_hc_done)
+                                            .mix(sample_lofreq_done)
+                                            .collect() // force it to wait for all steps to finish
     file(output_dir) from Channel.fromPath("${params.output_dir}")
 
     output:
