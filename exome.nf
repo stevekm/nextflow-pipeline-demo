@@ -1196,7 +1196,7 @@ process multiqc {
     file(output_dir) from Channel.fromPath("${params.output_dir}")
 
     output:
-    file "multiqc_report.html"
+    file "multiqc_report.html" into email_files
     file "multiqc_data"
 
     script:
@@ -1207,4 +1207,67 @@ process multiqc {
     source activate
     multiqc "${output_dir}"
     """
+}
+
+
+
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+workflow.onComplete {
+
+    def status = "NA"
+
+    if(workflow.success) {
+        status = "SUCCESS"
+    } else {
+        status = "FAILED"
+    }
+
+    def msg = """
+        The command used to launch the workflow was as follows:
+
+        ${workflow.commandLine}
+
+        Pipeline execution summary
+        ---------------------------
+        Success           : ${workflow.success}
+        exit status       : ${workflow.exitStatus}
+        Launch time       : ${workflow.start.format('dd-MMM-yyyy HH:mm:ss')}
+        Ending time       : ${workflow.complete.format('dd-MMM-yyyy HH:mm:ss')} (duration: ${workflow.duration})
+        Total CPU-Hours   : ${workflow.stats.getComputeTimeString() ?: '-'}
+        Launch directory  : ${workflow.launchDir}
+        Work directory    : ${workflow.workDir.toUriString()}
+        Project directory : ${workflow.projectDir}
+        Script name       : ${workflow.scriptName ?: '-'}
+        Script ID         : ${workflow.scriptId ?: '-'}
+        Workflow session  : ${workflow.sessionId}
+        Workflow repo     : ${workflow.repository ?: '-' }
+        Workflow revision : ${workflow.repository ? "$workflow.revision ($workflow.commitId)" : '-'}
+        Workflow profile  : ${workflow.profile ?: '-'}
+        Workflow container: ${workflow.container ?: '-'}
+        Container engine  : ${workflow.containerEngine?:'-'}
+        Nextflow version  : ${workflow.nextflow.version}, build ${workflow.nextflow.build} (${workflow.nextflow.timestamp})
+
+        --
+        This email was sent by Nextflow
+        cite doi:10.1038/nbt.3820
+        http://nextflow.io
+        """
+        .stripIndent()
+
+    if(params.pipeline_email) {
+        sendMail {
+            to "${params.email_to}"
+            from "${params.email_from}"
+            attach email_files.toList().getVal()
+            subject "[${params.workflow_label}] Pipeline Completion: ${status}"
+
+            body
+            """
+            ${msg}
+            """
+            .stripIndent()
+        }
+    }
 }
