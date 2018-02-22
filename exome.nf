@@ -2,7 +2,7 @@
 
 // pipeline settings; overriden by nextflow.config and CLI args
 params.output_dir = "output-${params.workflow_label}"
-params.bam_dd_ra_rc_gatk_dir = "bam_dd_ra_rc_gatk"
+
 
 
 
@@ -441,7 +441,7 @@ process bam_ra_rc_gatk {
     // https://software.broadinstitute.org/gatk/documentation/tooldocs/3.8-0/org_broadinstitute_gatk_tools_walkers_bqsr_BaseRecalibrator.php
     // https://software.broadinstitute.org/gatk/documentation/tooldocs/3.8-0/org_broadinstitute_gatk_tools_walkers_bqsr_AnalyzeCovariates.php
     tag { "${sample_ID}" }
-    publishDir "${params.output_dir}/${params.bam_dd_ra_rc_gatk_dir}", mode: 'copy', overwrite: true
+    publishDir "${params.output_dir}/bam_dd_ra_rc_gatk", mode: 'copy', overwrite: true
     beforeScript "${params.beforeScript_str}"
     afterScript "${params.afterScript_str}"
     clusterOptions '-pe threaded 4-16 -l mem_free=40G -l mem_token=4G'
