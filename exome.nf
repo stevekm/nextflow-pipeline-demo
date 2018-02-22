@@ -22,7 +22,7 @@ Channel.fromPath( file(params.trimmomatic_contaminant_fa) ).set{ trimmomatic_con
 Channel.fromPath( file(params.ref_fa_bwa_dir) ).set{ ref_fa_bwa_dir }
 Channel.fromPath( file(params.gatk_1000G_phase1_indels_hg19_vcf) ).set{ gatk_1000G_phase1_indels_vcf }
 Channel.fromPath( file(params.mills_and_1000G_gold_standard_indels_hg19_vcf) ).set{ mills_and_1000G_gold_standard_indels_vcf }
-Channel.fromPath( file(params.dbsnp_ref_vcf) ).into{ dbsnp_ref_vcf; dbsnp_ref_vcf2 }
+Channel.fromPath( file(params.dbsnp_ref_vcf) ).into{ dbsnp_ref_vcf; dbsnp_ref_vcf2; dbsnp_ref_vcf3 }
 Channel.fromPath( file(params.cosmic_ref_vcf) ).into{ cosmic_ref_vcf; cosmic_ref_vcf2 }
 Channel.fromPath( file(params.microsatellites) ).set{ microsatellites }
 
@@ -553,7 +553,9 @@ samples_dd_ra_rc_bam.combine(ref_fasta2)
                             samples_dd_ra_rc_bam_ref8 }
 
 
-
+samples_dd_ra_rc_bam_ref2.combine( dbsnp_ref_vcf3 )
+                        .tap { samples_dd_ra_rc_bam_ref_dbsnp;
+                                samples_dd_ra_rc_bam_ref_dbsnp2 }
 
 
 
@@ -632,12 +634,13 @@ process lofreq {
     module 'samtools/1.3'
 
     input:
-    set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_ra_rc_bam_ref2
+    set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file), file(dbsnp_ref_vcf) from samples_dd_ra_rc_bam_ref_dbsnp
 
     output:
     file("${sample_ID}.vcf")
     file("${sample_ID}.norm.vcf")
     file("${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into lofreq_annotations
+    file("${sample_ID}.eval.grp")
 
     script:
     """
@@ -670,6 +673,13 @@ process lofreq {
 
     # add a column with the sample ID
     paste_col.py -i "${sample_ID}.norm.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
+
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T VariantEval \
+    -R "${ref_fasta}" \
+    -o "${sample_ID}.eval.grp" \
+    --dbsnp "${dbsnp_ref_vcf}" \
+    --eval "${sample_ID}.norm.vcf"
+
     """
 }
 lofreq_annotations.collectFile(name: "annotations-lofreq.txt", storeDir: "${params.output_dir}", keepHeader: true)
@@ -686,13 +696,14 @@ process gatk_hc {
     module 'samtools/1.3'
 
     input:
-    set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file) from samples_dd_ra_rc_bam_ref3
+    set val(sample_ID), file(sample_bam), file(sample_bai), file(ref_fasta), file(ref_fai), file(ref_dict), file(targets_bed_file), file(dbsnp_ref_vcf) from samples_dd_ra_rc_bam_ref_dbsnp2
 
     output:
     file("${sample_ID}.vcf")
     set val(sample_ID), file("${sample_ID}.norm.vcf") into sample_vcf_hc
     file("${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into gatk_hc_annotations
     set val(sample_ID), file("${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt") into gatk_hc_annotations2
+    file("${sample_ID}.eval.grp")
 
     script:
     """
@@ -725,6 +736,12 @@ process gatk_hc {
 
     # add a column with the sample ID
     paste_col.py -i "${sample_ID}.norm.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" -o "${sample_ID}.norm.sample.${params.ANNOVAR_BUILD_VERSION}_multianno.txt" --header "Sample" -v "${sample_ID}" -d "\t"
+
+    java -Xms16G -Xmx16G -jar "${params.gatk_bin}" -T VariantEval \
+    -R "${ref_fasta}" \
+    -o "${sample_ID}.eval.grp" \
+    --dbsnp "${dbsnp_ref_vcf}" \
+    --eval "${sample_ID}.norm.vcf"
     """
 }
 gatk_hc_annotations.collectFile(name: "annotations-hc.txt", storeDir: "${params.output_dir}", keepHeader: true)
