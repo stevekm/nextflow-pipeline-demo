@@ -13,12 +13,6 @@ git clone https://github.com/stevekm/nextflow-pipeline-demo.git
 cd nextflow-pipeline-demo
 ```
 
-Install NextFlow
-
-```bash
-make install
-```
-
 Set up samplesheets
 
 - for the included example data
@@ -36,7 +30,7 @@ make setup
 Run exome pipeline (recommended to run in `screen`)
 
 ```bash
-make ex
+make exome
 ```
 # Included files
 
