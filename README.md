@@ -2,7 +2,11 @@
 
 Analysis pipeline for exome sequencing with tumor-normal paired samples.
 
-__NOTE__: Under development
+__NOTE__: This repo is deprecated. 
+
+- For Nextflow demos, see this repo: https://github.com/stevekm/nextflow-demos
+
+- for Nextflow pipeline developed from this repo, see here: https://github.com/NYU-Molecular-Pathology/NGS580-nf
 
 # Usage
 
